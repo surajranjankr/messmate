@@ -171,13 +171,13 @@ export const UserManagementPage: React.FC = () => {
             User Management
           </h2>
           <p className="text-sm text-text-secondary mt-0.5">
-            Manage student, vendor, and administrator demo accounts
+            Manage student, vendor, and administrator accounts
           </p>
         </div>
 
         <Button onClick={handleOpenAdd} className="gap-2">
           <Plus className="w-4 h-4" />
-          <span>Add Demo User</span>
+          <span>Add User</span>
         </Button>
       </div>
 
@@ -339,7 +339,7 @@ export const UserManagementPage: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingUserId ? 'Edit Demo User' : 'Add New Demo User'}
+              {editingUserId ? 'Edit User' : 'Add New User'}
             </DialogTitle>
           </DialogHeader>
 
