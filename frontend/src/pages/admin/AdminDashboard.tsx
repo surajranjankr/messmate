@@ -75,10 +75,10 @@ export const AdminDashboard: React.FC = () => {
             <Users className="w-4 h-4 text-primary" />
           </div>
           <div className="text-3xl font-black text-text-primary mt-2">
-            {summary?.totalStudents ?? 750}
+            {summary?.totalStudents ?? 0}
           </div>
           <span className="text-[11px] text-text-secondary mt-1 block">
-            Demo institutional cohort
+            Active eligible students
           </span>
         </Card>
 

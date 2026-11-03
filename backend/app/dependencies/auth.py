@@ -1,18 +1,18 @@
 from typing import List, Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from app.db.session import get_db
 from app.core.security import decode_access_token
-from app.models.user import User
+from app.schemas.user import UserOut
+from app.repositories.user import IUserRepository
+from app.dependencies.repositories import get_user_repository
 
 security_scheme = HTTPBearer(auto_error=False)
 
-def get_current_user(
+async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    """Retrieve and validate the authenticated user from the Bearer token."""
+    user_repo: IUserRepository = Depends(get_user_repository)
+) -> UserOut:
+    """Retrieve and validate the authenticated user using the active repository backend."""
     if not credentials or not credentials.credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -30,7 +30,7 @@ def get_current_user(
         )
 
     user_id = payload["sub"]
-    user = db.query(User).filter(User.id == user_id, User.status == "ACTIVE").first()
+    user = await user_repo.get_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -41,7 +41,7 @@ def get_current_user(
 
 def require_role(*allowed_roles: str):
     """Enforce role-based access control (RBAC) on endpoints."""
-    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+    def role_checker(current_user: UserOut = Depends(get_current_user)) -> UserOut:
         if current_user.role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

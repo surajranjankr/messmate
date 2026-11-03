@@ -10,6 +10,7 @@ from app.models.forecast import ForecastRecommendation, VendorDecision
 from app.models.outcome import MealOutcome
 from app.core.security import hash_password
 from app.core.config import settings
+from app.core.timezone import calculate_meal_response_window, evaluate_meal_window_status
 
 DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
 MEAL_TYPES = ["BREAKFAST", "LUNCH", "SNACKS", "DINNER"]
@@ -333,6 +334,14 @@ def init_db(db: Session) -> None:
     """Initialize database tables and seed baseline demo records idempotently."""
     Base.metadata.create_all(bind=engine)
 
+    # Ensure response_open_time column exists in SQLite meal_instances
+    try:
+        from sqlalchemy import text
+        db.execute(text("ALTER TABLE meal_instances ADD COLUMN response_open_time VARCHAR(64)"))
+        db.commit()
+    except Exception:
+        db.rollback()
+
     # 1. Seed Demo Users (development and demonstration only; never in production)
     if not db.query(User).first() and settings.ENVIRONMENT.lower() != "production":
         demo_users = [
@@ -453,25 +462,16 @@ def init_db(db: Session) -> None:
 
             for m_type in MEAL_TYPES:
                 inst_id = f"mi-{date_str}-{m_type.lower()}"
-                
-                # Default deadline: breakfast = 22:00 day before; others same day
-                if m_type == "BREAKFAST":
-                    dl = target_date.replace(hour=4, minute=30, second=0, microsecond=0) # 10:00 PM IST is 16:30 UTC day before
-                elif m_type == "LUNCH":
-                    dl = target_date.replace(hour=4, minute=0, second=0, microsecond=0)  # 09:30 AM IST is 04:00 UTC
-                elif m_type == "SNACKS":
-                    dl = target_date.replace(hour=8, minute=30, second=0, microsecond=0) # 02:00 PM IST is 08:30 UTC
-                else:
-                    dl = target_date.replace(hour=11, minute=30, second=0, microsecond=0) # 05:00 PM IST is 11:30 UTC
-
-                iso_deadline = dl.isoformat()
+                open_utc, close_utc, open_iso, close_iso = calculate_meal_response_window(
+                    meal_date=date_str,
+                    meal_type=m_type,
+                    tz="Asia/Kolkata",
+                )
 
                 if offset < 0:
                     status = "COMPLETED"
-                elif offset == 0:
-                    status = "RESPONSE_OPEN"
                 else:
-                    status = "UPCOMING"
+                    status = evaluate_meal_window_status(datetime.now(timezone.utc), open_utc, close_utc)
 
                 instances.append(
                     MealInstance(
@@ -479,7 +479,8 @@ def init_db(db: Session) -> None:
                         meal_date=date_str,
                         meal_type=m_type,
                         menu_version_id="menu-v1",
-                        response_deadline=iso_deadline,
+                        response_deadline=close_iso,
+                        response_open_time=open_iso,
                         status=status,
                     )
                 )

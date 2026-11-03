@@ -36,11 +36,20 @@ export const AdminReportsPage: React.FC = () => {
   const [selectedMealType, setSelectedMealType] = useState<string>('ALL');
 
   useEffect(() => {
-    const filters = selectedMealType !== 'ALL'
-      ? { mealType: selectedMealType as MealType }
-      : undefined;
-    const data = reportService.getMealReports(filters);
-    setReports(data);
+    let isMounted = true;
+    async function loadReports() {
+      const filters = selectedMealType !== 'ALL'
+        ? { mealType: selectedMealType as MealType }
+        : undefined;
+      const data = await reportService.fetchMealReports(filters);
+      if (isMounted) {
+        setReports(data);
+      }
+    }
+    loadReports();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedMealType]);
 
   const chartData = reports
@@ -50,7 +59,8 @@ export const AdminReportsPage: React.FC = () => {
       const prob = r.counts.probablyEating;
       const notEating = r.counts.notEating;
       const totalResponded = def + prob + notEating;
-      const coveragePct = Math.round((totalResponded / (r.counts.totalRegistered || 750)) * 100);
+      const totalRegistered = r.counts.totalRegistered;
+      const coveragePct = totalRegistered > 0 ? Math.round((totalResponded / totalRegistered) * 100) : 0;
 
       return {
         name: `${formatDate(r.mealDate).slice(0, 6)} ${formatMealType(r.mealType).slice(0, 1)}`,
@@ -198,6 +208,7 @@ export const AdminReportsPage: React.FC = () => {
                 <TableHead>No Response</TableHead>
                 <TableHead>Recommended</TableHead>
                 <TableHead>Final Prepared</TableHead>
+                <TableHead>Actual Attendance</TableHead>
                 <TableHead>Leftovers</TableHead>
               </TableRow>
             </TableHeader>
@@ -228,24 +239,36 @@ export const AdminReportsPage: React.FC = () => {
                   </TableCell>
 
                   <TableCell className="text-xs font-semibold text-primary">
-                    {r.recommendation?.recommendedPortions ?? '—'} portions
+                    {r.recommendation?.recommendedPortions !== undefined && r.recommendation?.recommendedPortions !== null
+                      ? `${r.recommendation.recommendedPortions} portions`
+                      : <span className="text-text-secondary italic">Insufficient data</span>}
                   </TableCell>
 
                   <TableCell className="text-xs font-semibold">
                     {r.outcome?.actualPreparedQuantity !== undefined
                       ? `${r.outcome.actualPreparedQuantity} portions`
-                      : r.decision
+                      : r.decision?.finalPlannedQuantity !== undefined
                       ? `${r.decision.finalPlannedQuantity} portions (planned)`
-                      : '—'}
+                      : <span className="text-text-secondary italic">Not recorded</span>}
+                  </TableCell>
+
+                  <TableCell className="text-xs">
+                    {r.outcome?.actualAttendance !== undefined ? (
+                      <Badge variant="secondary" className="text-[11px]">
+                        {r.outcome.actualAttendance} students
+                      </Badge>
+                    ) : (
+                      <span className="text-text-secondary italic">Not recorded</span>
+                    )}
                   </TableCell>
 
                   <TableCell className="text-xs">
                     {r.outcome?.leftoverQuantity !== undefined ? (
                       <span className="font-semibold text-warning">
-                        {r.outcome.leftoverQuantity} {r.outcome.leftoverUnit}
+                        {r.outcome.leftoverQuantity} {r.outcome.leftoverUnit || 'kg'}
                       </span>
                     ) : (
-                      '—'
+                      <span className="text-text-secondary italic">—</span>
                     )}
                   </TableCell>
                 </TableRow>

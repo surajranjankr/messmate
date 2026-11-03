@@ -10,6 +10,7 @@ from app.api.routes import (
     forecasts,
     outcomes,
     reports,
+    settings,
 )
 
 api_router = APIRouter()
@@ -24,3 +25,4 @@ api_router.include_router(schedules.router)
 api_router.include_router(forecasts.router)
 api_router.include_router(outcomes.router)
 api_router.include_router(reports.router)
+api_router.include_router(settings.router)

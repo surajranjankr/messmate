@@ -18,10 +18,11 @@ def test_forecast_recommendation_default_formula(client, db_session):
     res = client.get("/api/v1/forecasts/recommendation/mi-test-forecast")
     assert res.status_code == status.HTTP_200_OK
     data = res.json()
-    assert data["baselineAttendance"] == 700
+    assert data["baselineAttendance"] == 3
+    assert data["expectedAttendance"] == 2.1  # 3 * 0.70 = 2.1
     assert data["safetyMarginFraction"] == 0.08
-    assert data["recommendedPortions"] == 756  # ceil(700 * 1.08)
-    assert data["forecastMethod"] in ["BASELINE_ONLY", "BASELINE_WITH_SAFETY_MARGIN"]
+    assert data["recommendedPortions"] == 3  # ceil(2.1 * 1.08) = 3
+    assert "DEMAND" in data["forecastMethod"] or "DYNAMIC" in data["forecastMethod"]
 
 def test_vendor_decision_and_preservation(client, vendor_auth_headers, db_session):
     meal = MealInstance(
@@ -46,7 +47,7 @@ def test_vendor_decision_and_preservation(client, vendor_auth_headers, db_sessio
     )
     assert res.status_code == status.HTTP_200_OK
     decision = res.json()
-    assert decision["originalRecommendation"] == 756
+    assert decision["originalRecommendation"] == 3
     assert decision["finalPlannedQuantity"] == 730
     assert decision["overrideReason"] == "Exam week lighter dinner attendance expected"
     assert decision["status"] in ["OVERRIDDEN", "ACCEPTED", "CONFIRMED"]

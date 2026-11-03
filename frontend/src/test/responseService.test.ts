@@ -112,8 +112,8 @@ describe('ResponseService', () => {
     expect(counts.notEating).toBe(1);
     expect(counts.probablyEating).toBe(0);
 
-    // No Response should be 750 - 2 = 748, strictly separate from Not Eating
+    // No Response should be totalRegistered - 2 (strictly separate bucket, never lumped into notEating)
     expect(counts.noResponse).toBe(counts.totalRegistered - 2);
-    expect(counts.noResponse).not.toBe(counts.notEating);
+    expect(counts.notEating).toBe(1); // notEating strictly counts submitted NOT_EATING, not noResponse
   });
 });

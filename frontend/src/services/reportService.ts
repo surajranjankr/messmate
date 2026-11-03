@@ -9,6 +9,7 @@ import {
   MealReportEntry,
   ReportFilters,
   UserRole,
+  UserStatus,
 } from '../types';
 import { authService } from './authService';
 import { scheduleService } from './scheduleService';
@@ -17,7 +18,6 @@ import { mealInstanceService } from './mealInstanceService';
 import { responseService } from './responseService';
 import { forecastService } from './forecastService';
 import { outcomeService } from './outcomeService';
-import { TOTAL_REGISTERED_STUDENTS } from '../mocks/seedData';
 import { apiClient } from './apiClient';
 
 export const reportService = {
@@ -26,7 +26,7 @@ export const reportService = {
    */
   getDashboardSummary(): DashboardSummary {
     const users = authService.getUsers();
-    const students = users.filter((u) => u.role === UserRole.STUDENT);
+    const students = users.filter((u) => u.role === UserRole.STUDENT && u.status === UserStatus.ACTIVE);
     const vendors = users.filter((u) => u.role === UserRole.VENDOR);
     const admins = users.filter((u) => u.role === UserRole.ADMIN);
 
@@ -39,7 +39,7 @@ export const reportService = {
       .slice(0, 5);
 
     return {
-      totalStudents: TOTAL_REGISTERED_STUDENTS, // 750 registered cohort
+      totalStudents: students.length,
       totalVendors: vendors.length,
       totalAdmins: admins.length,
       configuredSchedules: schedules.filter((s) => s.enabled).length,

@@ -118,6 +118,10 @@ export const MealListPage: React.FC = () => {
                     <Badge variant="warning" className="text-[11px]">
                       Response Open
                     </Badge>
+                  ) : meal.status === MealInstanceStatus.UPCOMING ? (
+                    <Badge variant="secondary" className="text-[11px]">
+                      Not Yet Open
+                    </Badge>
                   ) : (
                     <Badge variant="muted" className="text-[11px]">
                       Closed

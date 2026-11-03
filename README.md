@@ -41,19 +41,23 @@ MessMate development progress:
 
 ---
 
-## 3. Demo Credentials
+## 3. Demo Credentials & Development Access
 
-All demo accounts use password: **`demo123`**
+> [!WARNING]
+> **DEVELOPMENT & TESTING ONLY:**
+> The following credentials are provided strictly for local demonstration, automated testing, and development evaluation. They must NEVER be used in production environments. Production deployments must integrate institute Single Sign-On (SSO) or enforce distinct, securely rotated administrative credentials.
+
+All default seed demo accounts use password: **`demo123`**
 
 | Role | Name | Institute Email | Access & Permissions |
 |---|---|---|---|
 | **Student** | Arjun Sharma | `arjun@iiitdwd.ac.in` | Views weekly menu, submits meal intentions before deadline, views private history |
-| **Student** | Priya Patel | `priya@iiitdwd.ac.in` | Student workflows |
-| **Student** | Rahul Verma | `rahul@iiitdwd.ac.in` | Student workflows |
-| **Vendor** | Mess Vendor | `vendor@iiitdwd.ac.in` | Inspects aggregate counts, sees $Q=756$ recommendation, confirms batch size, logs leftovers |
-| **Administrator** | Admin User | `admin@iiitdwd.ac.in` | Full management: users, draft/published menus, 28 notification schedules, audit reports |
+| **Student** | Priya Patel | `priya@iiitdwd.ac.in` | Student workflows and intention submissions |
+| **Student** | Rahul Verma | `rahul@iiitdwd.ac.in` | Student workflows and intention submissions |
+| **Vendor** | Mess Vendor | `vendor@iiitdwd.ac.in` | Inspects dynamic aggregate counts, reviews baseline recommendations, confirms batch sizes, logs leftovers |
+| **Administrator** | Admin User | `admin@iiitdwd.ac.in` | Full management: users, draft/published menus, 28 notification schedules, operational audit reports |
 
-> **Note:** The login screen provides **1-Click Demo Login** buttons to fill these credentials automatically.
+> **Security Note:** Quick Demo autofill cards have been removed from the user interface. Users must authenticate manually using their institute credentials.
 
 ---
 

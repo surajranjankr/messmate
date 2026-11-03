@@ -32,6 +32,7 @@ export enum StorageKey {
   FORECAST_RECOMMENDATIONS = 'forecastRecommendations',
   MENU_VERSIONS = 'menuVersions',
   CLOCK_MOCK_TIME = 'clockMockTime',
+  INSTITUTION_SETTINGS = 'institutionSettings',
 }
 
 // --- Helpers ---
@@ -130,6 +131,26 @@ export function resetToDefaults(): void {
  * Checks for the presence of the USERS key as a sentinel.
  */
 export function initializeStorageIfEmpty(): void {
+  // Purge legacy mock outcome / decision artifacts if present in existing localStorage
+  try {
+    const existingOutcomes = storageGet<any[]>(StorageKey.MEAL_OUTCOMES, []);
+    if (existingOutcomes.some((o) => o?.actualPreparedQuantity === 756 || o?.notes === 'Demo outcome data')) {
+      storageSet(
+        StorageKey.MEAL_OUTCOMES,
+        existingOutcomes.filter((o) => o?.actualPreparedQuantity !== 756 && o?.notes !== 'Demo outcome data')
+      );
+    }
+    const existingDecisions = storageGet<any[]>(StorageKey.VENDOR_DECISIONS, []);
+    if (existingDecisions.some((d) => d?.finalPlannedQuantity === 780 || d?.finalPlannedQuantity === 756)) {
+      storageSet(
+        StorageKey.VENDOR_DECISIONS,
+        existingDecisions.filter((d) => d?.finalPlannedQuantity !== 780 && d?.finalPlannedQuantity !== 756)
+      );
+    }
+  } catch {
+    // ignore
+  }
+
   if (storageHas(StorageKey.USERS)) {
     // Already initialized — skip.
     return;

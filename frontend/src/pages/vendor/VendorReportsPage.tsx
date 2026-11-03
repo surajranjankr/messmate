@@ -34,11 +34,20 @@ export const VendorReportsPage: React.FC = () => {
   const [selectedMealType, setSelectedMealType] = useState<string>('ALL');
 
   useEffect(() => {
-    const filters = selectedMealType !== 'ALL'
-      ? { mealType: selectedMealType as MealType }
-      : undefined;
-    const data = reportService.getMealReports(filters);
-    setReports(data);
+    let isMounted = true;
+    async function loadReports() {
+      const filters = selectedMealType !== 'ALL'
+        ? { mealType: selectedMealType as MealType }
+        : undefined;
+      const data = await reportService.fetchMealReports(filters);
+      if (isMounted) {
+        setReports(data);
+      }
+    }
+    loadReports();
+    return () => {
+      isMounted = false;
+    };
   }, [selectedMealType]);
 
   // Prepare chart data comparing recommended vs planned/prepared
@@ -47,7 +56,7 @@ export const VendorReportsPage: React.FC = () => {
     .map((r) => ({
       name: `${formatDate(r.mealDate).slice(0, 6)} ${formatMealType(r.mealType).slice(0, 1)}`,
       Recommended: r.recommendation?.recommendedPortions ?? 0,
-      Planned: r.decision?.finalPlannedQuantity ?? r.recommendation?.recommendedPortions ?? 0,
+      Planned: r.decision?.finalPlannedQuantity ?? 0,
       Prepared: r.outcome?.actualPreparedQuantity ?? 0,
       Attendance: r.outcome?.actualAttendance ?? 0,
     }));
@@ -177,38 +186,40 @@ export const VendorReportsPage: React.FC = () => {
                   </TableCell>
 
                   <TableCell className="text-xs font-medium text-primary">
-                    {r.recommendation ? `${r.recommendation.recommendedPortions} port.` : '—'}
+                    {r.recommendation?.recommendedPortions !== undefined && r.recommendation?.recommendedPortions !== null
+                      ? `${r.recommendation.recommendedPortions} port.`
+                      : <span className="text-text-secondary italic">Insufficient data</span>}
                   </TableCell>
 
                   <TableCell className="text-xs font-semibold">
-                    {r.decision ? (
+                    {r.decision?.finalPlannedQuantity !== undefined ? (
                       <Badge variant="secondary" className="text-[11px]">
                         {r.decision.finalPlannedQuantity} port.
                       </Badge>
                     ) : (
-                      <span className="text-text-secondary italic">Pending</span>
+                      <span className="text-text-secondary italic">Not planned</span>
                     )}
                   </TableCell>
 
                   <TableCell className="text-xs">
                     {r.outcome?.actualPreparedQuantity !== undefined
                       ? `${r.outcome.actualPreparedQuantity} port.`
-                      : '—'}
+                      : <span className="text-text-secondary italic">Not recorded</span>}
                   </TableCell>
 
                   <TableCell className="text-xs">
                     {r.outcome?.actualAttendance !== undefined
                       ? `${r.outcome.actualAttendance} students`
-                      : '—'}
+                      : <span className="text-text-secondary italic">Not recorded</span>}
                   </TableCell>
 
                   <TableCell className="text-xs">
                     {r.outcome?.leftoverQuantity !== undefined ? (
                       <span className="font-semibold text-warning">
-                        {r.outcome.leftoverQuantity} {r.outcome.leftoverUnit}
+                        {r.outcome.leftoverQuantity} {r.outcome.leftoverUnit || 'kg'}
                       </span>
                     ) : (
-                      '—'
+                      <span className="text-text-secondary italic">—</span>
                     )}
                   </TableCell>
                 </TableRow>

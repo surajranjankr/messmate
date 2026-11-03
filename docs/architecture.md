@@ -121,3 +121,25 @@ In **Phase 2**, the architecture transitions from browser-local persistence to a
 ### E. Privacy
 - Students can only view their own meal intention history.
 - Vendors and admins see aggregate counts, never individually identified student choices.
+
+---
+
+## 4. Phase 3: MongoDB Document Architecture & External Integrations
+
+### A. Dual-Engine Persistence Abstraction
+MessMate supports configurable database backends via `DATABASE_BACKEND`:
+- `sqlite`: Local development & instant rollback engine using SQLite file storage (`backend/data/messmate.db`).
+- `mongodb`: Scalable cloud persistence engine targeting MongoDB Atlas clusters with connection pooling via Motor.
+
+### B. MongoDB Document Collections
+1. `users`: Indexed on `email` (unique).
+2. `menu_versions`: Embeds the complete 28-meal and 108-dish hierarchy for atomic reads.
+3. `meal_instances`: Embeds `recommendation`, `vendor_decision`, and `outcome` subdocuments. Missing measurements remain null.
+4. `meal_responses`: Referenced collection with a unique compound index on `(student_id, meal_instance_id)` enforcing high-concurrency write isolation and one response per student per meal.
+5. `notification_schedules`: Indexed on `(day_of_week, meal_type)`.
+6. `notifications`: Indexed on `(user_id, is_read)`.
+
+### C. Modular External Integrations
+- **Email (Resend):** Modular adapter under `backend/app/integrations/email/` supporting `ResendClient` and `MockEmailClient`. Unconfigured keys gracefully report status without application crashes.
+- **WhatsApp:** Interface defined under `backend/app/integrations/whatsapp/client.py`; delivery deferred per Phase 3 specifications while in-app notifications remain active.
+

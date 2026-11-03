@@ -11,20 +11,28 @@ import {
   DataQualityStatus,
   VendorDecision,
   VendorDecisionStatus,
+  User,
+  UserRole,
+  UserStatus,
 } from '../types';
 import { storageGet, storageSet, StorageKey } from '../lib/storage';
 import {
-  DEFAULT_BASELINE_ATTENDANCE,
+  DEMO_USERS,
   DEFAULT_SAFETY_MARGIN,
+  DEFAULT_NONRESPONSE_ATTENDANCE_RATE,
 } from '../mocks/seedData';
 import { apiClient } from './apiClient';
+import { responseService } from './responseService';
 
 export const forecastService = {
   /**
-   * Get the baseline vendor attendance (default 700).
+   * Get the baseline student attendance dynamically from active student population.
    */
   getBaselineAttendance(): number {
-    return DEFAULT_BASELINE_ATTENDANCE;
+    const users = storageGet<User[]>(StorageKey.USERS, DEMO_USERS);
+    return users.filter(
+      (u) => u.role === UserRole.STUDENT && u.status === UserStatus.ACTIVE
+    ).length;
   },
 
   /**
@@ -35,36 +43,60 @@ export const forecastService = {
   },
 
   /**
-   * Compute or retrieve the preparation recommendation for a meal instance.
-   * Uses formula: F = B, Q = ceil(F * (1 + m))
+   * Compute or retrieve the dynamic preparation recommendation for a meal instance.
+   * Derived from actual response counts: F = (D * 1.0) + (P * 0.5) + (R * rate), Q = ceil(F * (1 + m))
    */
   getRecommendation(mealInstanceId: string): ForecastRecommendation {
     const existingRecs = storageGet<ForecastRecommendation[]>(
       StorageKey.FORECAST_RECOMMENDATIONS,
       []
     );
-    const found = existingRecs.find((r) => r.mealInstanceId === mealInstanceId);
-    if (found) return found;
+    const counts = responseService.getAggregateCounts(mealInstanceId);
+    const T = counts.totalRegistered;
+    const D = counts.definitelyEating;
+    const P = counts.probablyEating;
+    const N = counts.notEating;
+    const R = counts.noResponse;
 
-    // Generate standard prototype recommendation
-    const B = DEFAULT_BASELINE_ATTENDANCE;
-    const m = DEFAULT_SAFETY_MARGIN;
-    const F = B; // Initial baseline forecast
-    const Q = Math.ceil(F * (1 + m)); // 756 portions
+    const m = this.getSafetyMargin();
+    const rate = DEFAULT_NONRESPONSE_ATTENDANCE_RATE;
 
-    const newRec: ForecastRecommendation = {
+    let F: number;
+    let Q: number | null;
+    let status: DataQualityStatus | string;
+    let explanation: string;
+
+    if (T === 0) {
+      F = 0;
+      Q = 0;
+      status = 'ZERO_POPULATION';
+      explanation = 'No active registered students found in database.';
+    } else {
+      F = Math.round(((D * 1.0) + (P * 0.5) + (R * rate)) * 10) / 10;
+      Q = F > 0 ? Math.ceil(F * (1 + m)) : 0;
+      status = DataQualityStatus.SUFFICIENT;
+      explanation = `Dynamic demand model: ${T} active students (${D} definitely, ${P} probably, ${N} not eating, ${R} no response @ ${Math.round(rate * 100)}% rate). Expected demand F=${F}, safety margin ${Math.round(m * 100)}% -> ${Q} portions.`;
+    }
+
+    const rec: ForecastRecommendation = {
       mealInstanceId,
-      baselineAttendance: B,
+      baselineAttendance: T,
       expectedAttendance: F,
       safetyMarginFraction: m,
       recommendedPortions: Q,
       forecastMethod: ForecastMethod.BASELINE_ONLY,
-      dataQualityStatus: DataQualityStatus.DEMONSTRATION,
-      explanation: `DEMONSTRATION ESTIMATE: Baseline attendance of ${B} students plus a provisional ${Math.round(m * 100)}% safety margin yields ${Q} recommended portions. This formula is illustrative and not yet statistically validated.`,
+      dataQualityStatus: status,
+      explanation,
+      definitelyEating: D,
+      probablyEating: P,
+      notEating: N,
+      noResponse: R,
+      nonresponseAttendanceRate: rate,
     };
 
-    storageSet(StorageKey.FORECAST_RECOMMENDATIONS, [...existingRecs, newRec]);
-    return newRec;
+    const filtered = existingRecs.filter((r) => r.mealInstanceId !== mealInstanceId);
+    storageSet(StorageKey.FORECAST_RECOMMENDATIONS, [...filtered, rec]);
+    return rec;
   },
 
   /**

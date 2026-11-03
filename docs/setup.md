@@ -138,5 +138,34 @@ CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
 ### Frontend (`frontend/.env.development`)
 
 ```env
-VITE_API_URL=http://localhost:8000/api/v1
+VITE_API_BASE_URL=http://localhost:8000/api/v1
 ```
+
+---
+
+## 6. Phase 3: MongoDB Atlas Migration & Rollback
+
+### Running the Migration Dry-Run
+
+```powershell
+cd "C:\Users\Suraj ranjan kumar\Desktop\messmate"
+.\backend\.venv\Scripts\python backend\migrate_to_mongo.py --dry-run
+```
+*Creates an automated backup at `backend/data/backups/messmate_pre_mongo_<timestamp>.db`, validates document schemas, and reports expected document counts without writing to MongoDB.*
+
+### Executing Migration to MongoDB Atlas
+
+1. Configure `MONGODB_URI` in `backend/.env`.
+2. Execute migration:
+```powershell
+.\backend\.venv\Scripts\python backend\migrate_to_mongo.py --execute
+```
+
+### Switching Active Database Engine
+
+In `backend/.env`:
+- To use MongoDB: `DATABASE_BACKEND=mongodb`
+- To rollback to SQLite: `DATABASE_BACKEND=sqlite`
+
+Both options are fully preserved and independently testable.
+

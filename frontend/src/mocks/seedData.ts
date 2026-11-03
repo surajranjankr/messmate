@@ -260,54 +260,11 @@ export const demoMealResponses: MealResponse[] = generateDemoResponses();
 
 // --- Demo Vendor Decisions ---
 
-function generateDemoVendorDecisions(): VendorDecision[] {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().split('T')[0]!;
-
-  return [
-    {
-      mealInstanceId: `mi-${dateStr}-lunch`,
-      originalRecommendation: 756,
-      finalPlannedQuantity: 756,
-      status: VendorDecisionStatus.ACCEPTED,
-      updatedAt: yesterday.toISOString(),
-    },
-    {
-      mealInstanceId: `mi-${dateStr}-dinner`,
-      originalRecommendation: 756,
-      finalPlannedQuantity: 780,
-      overrideReason: 'Expecting more students for special dinner',
-      status: VendorDecisionStatus.OVERRIDDEN,
-      updatedAt: yesterday.toISOString(),
-    },
-  ];
-}
-
-export const demoVendorDecisions: VendorDecision[] = generateDemoVendorDecisions();
+export const demoVendorDecisions: VendorDecision[] = [];
 
 // --- Demo Meal Outcomes ---
 
-function generateDemoOutcomes(): MealOutcome[] {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().split('T')[0]!;
-
-  return [
-    {
-      mealInstanceId: `mi-${dateStr}-lunch`,
-      actualAttendance: 710,
-      actualPreparedQuantity: 756,
-      preparedUnit: 'portions',
-      leftoverQuantity: 46,
-      leftoverUnit: 'portions',
-      notes: 'Demo outcome data',
-      recordedAt: yesterday.toISOString(),
-    },
-  ];
-}
-
-export const demoMealOutcomes: MealOutcome[] = generateDemoOutcomes();
+export const demoMealOutcomes: MealOutcome[] = [];
 
 // --- Demo Forecast Recommendations ---
 
@@ -319,14 +276,19 @@ function generateDemoForecasts(): ForecastRecommendation[] {
   return [
     {
       mealInstanceId: `mi-${dateStr}-lunch`,
-      baselineAttendance: 700,
-      expectedAttendance: 700,
+      baselineAttendance: 3,
+      expectedAttendance: 2.1,
       safetyMarginFraction: 0.08,
-      recommendedPortions: 756,
+      recommendedPortions: 3,
       forecastMethod: ForecastMethod.BASELINE_ONLY,
-      dataQualityStatus: DataQualityStatus.DEMONSTRATION,
+      dataQualityStatus: DataQualityStatus.SUFFICIENT,
       explanation:
-        'DEMONSTRATION DATA: Using baseline attendance of 700 with 8% safety margin. F=B=700, Q=ceil(700*(1+0.08))=756.',
+        'Dynamic demand model: 3 active students with 70% nonresponse rate. Expected demand F=2.1, Q=ceil(2.1*1.08)=3.',
+      definitelyEating: 0,
+      probablyEating: 0,
+      notEating: 0,
+      noResponse: 3,
+      nonresponseAttendanceRate: 0.70,
     },
   ];
 }
@@ -341,10 +303,11 @@ export const demoUsers = DEMO_USERS;
 // --- Constants ---
 
 /** Total registered students for demo purposes */
-export const TOTAL_REGISTERED_STUDENTS = 750;
+export const TOTAL_REGISTERED_STUDENTS = 3;
 
 /** Default vendor baseline attendance */
-export const DEFAULT_BASELINE_ATTENDANCE = 700;
+export const DEFAULT_BASELINE_ATTENDANCE = 3;
+export const DEFAULT_NONRESPONSE_ATTENDANCE_RATE = 0.70;
 
 /** Default safety margin fraction */
 export const DEFAULT_SAFETY_MARGIN = 0.08;

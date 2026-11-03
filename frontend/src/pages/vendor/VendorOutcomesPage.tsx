@@ -41,12 +41,16 @@ export const VendorOutcomesPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = async () => {
     const all = mealInstanceService.getAllMealInstances();
     setMeals(all);
 
-    const outcomes = outcomeService.getAllOutcomes();
-    setAllOutcomes(outcomes);
+    try {
+      const outcomes = await outcomeService.fetchAllOutcomes();
+      setAllOutcomes(outcomes);
+    } catch {
+      setAllOutcomes(outcomeService.getAllOutcomes());
+    }
 
     if (all.length > 0 && !selectedMealId) {
       setSelectedMealId(all[0]!.id);
@@ -55,7 +59,9 @@ export const VendorOutcomesPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const handleClockTick = () => loadData();
+    const handleClockTick = () => {
+      loadData();
+    };
     window.addEventListener('clock-tick', handleClockTick);
     return () => window.removeEventListener('clock-tick', handleClockTick);
   }, []);
@@ -63,31 +69,39 @@ export const VendorOutcomesPage: React.FC = () => {
   useEffect(() => {
     if (!selectedMealId) return;
 
-    const out = outcomeService.getOutcome(selectedMealId);
-    setExistingOutcome(out);
+    let isSubscribed = true;
+    async function fetchMealOutcome() {
+      const out = await outcomeService.fetchOutcome(selectedMealId);
+      if (!isSubscribed) return;
 
-    if (out) {
-      setActualAttendance(out.actualAttendance !== undefined ? String(out.actualAttendance) : '');
-      setActualPrepared(out.actualPreparedQuantity !== undefined ? String(out.actualPreparedQuantity) : '');
-      setLeftoverQty(out.leftoverQuantity !== undefined ? String(out.leftoverQuantity) : '');
-      setLeftoverUnit(out.leftoverUnit ?? 'kg');
-      setNotes(out.notes ?? '');
-    } else {
-      // Default actual prepared to confirmed vendor decision if available
-      const decision = forecastService.getVendorDecision(selectedMealId);
-      const rec = forecastService.getRecommendation(selectedMealId);
-      setActualPrepared(String(decision?.finalPlannedQuantity ?? rec.recommendedPortions));
-      setActualAttendance('');
-      setLeftoverQty('');
-      setLeftoverUnit('kg');
-      setNotes('');
+      setExistingOutcome(out);
+
+      if (out) {
+        setActualAttendance(out.actualAttendance !== undefined ? String(out.actualAttendance) : '');
+        setActualPrepared(out.actualPreparedQuantity !== undefined ? String(out.actualPreparedQuantity) : '');
+        setLeftoverQty(out.leftoverQuantity !== undefined ? String(out.leftoverQuantity) : '');
+        setLeftoverUnit(out.leftoverUnit ?? 'kg');
+        setNotes(out.notes ?? '');
+      } else {
+        // Must NEVER prefill actual prepared quantity with recommendations or decisions
+        setActualPrepared('');
+        setActualAttendance('');
+        setLeftoverQty('');
+        setLeftoverUnit('kg');
+        setNotes('');
+      }
+
+      setSuccessMessage(null);
+      setErrorMessage(null);
     }
 
-    setSuccessMessage(null);
-    setErrorMessage(null);
+    fetchMealOutcome();
+    return () => {
+      isSubscribed = false;
+    };
   }, [selectedMealId]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -96,13 +110,13 @@ export const VendorOutcomesPage: React.FC = () => {
     const preparedNum = actualPrepared.trim() ? Number(actualPrepared) : undefined;
     const leftoverNum = leftoverQty.trim() ? Number(leftoverQty) : undefined;
 
-    if (attendanceNum !== undefined && (isNaN(attendanceNum) || attendanceNum < 0 || !Number.isInteger(attendanceNum))) {
-      setErrorMessage('Actual attendance must be a valid non-negative whole number of students.');
+    if (preparedNum === undefined || isNaN(preparedNum) || preparedNum < 0 || !Number.isInteger(preparedNum)) {
+      setErrorMessage('Actual prepared quantity is required and must be a non-negative whole number of portions.');
       return;
     }
 
-    if (preparedNum !== undefined && (isNaN(preparedNum) || preparedNum < 0 || !Number.isInteger(preparedNum))) {
-      setErrorMessage('Actual prepared quantity must be a valid non-negative whole number of portions.');
+    if (attendanceNum !== undefined && (isNaN(attendanceNum) || attendanceNum < 0 || !Number.isInteger(attendanceNum))) {
+      setErrorMessage('Actual attendance must be a valid non-negative whole number of students.');
       return;
     }
 
@@ -112,7 +126,7 @@ export const VendorOutcomesPage: React.FC = () => {
     }
 
     try {
-      const saved = outcomeService.saveOutcome({
+      const saved = await outcomeService.saveOutcomeAsync({
         mealInstanceId: selectedMealId,
         actualAttendance: attendanceNum,
         actualPreparedQuantity: preparedNum,
@@ -123,7 +137,8 @@ export const VendorOutcomesPage: React.FC = () => {
       });
 
       setExistingOutcome(saved);
-      setAllOutcomes(outcomeService.getAllOutcomes());
+      const updated = await outcomeService.fetchAllOutcomes();
+      setAllOutcomes(updated);
       setSuccessMessage('Meal outcome recorded successfully!');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save outcome.';
@@ -187,6 +202,31 @@ export const VendorOutcomesPage: React.FC = () => {
                 </Select>
               </div>
 
+              {/* Contextual Planning Reference Badges */}
+              {selectedMealId && (
+                <div className="p-2.5 bg-lavender/50 border border-border-light rounded-lg space-y-1 text-xs">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-text-secondary">
+                    Planning Reference
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-text-secondary">System Recommendation:</span>
+                    <span className="font-semibold text-primary">
+                      {forecastService.getRecommendation(selectedMealId)?.recommendedPortions !== undefined
+                        ? `${forecastService.getRecommendation(selectedMealId)?.recommendedPortions} portions`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-text-secondary">Confirmed Planned Batch:</span>
+                    <span className="font-semibold text-text-primary">
+                      {forecastService.getVendorDecision(selectedMealId)?.finalPlannedQuantity !== undefined
+                        ? `${forecastService.getVendorDecision(selectedMealId)?.finalPlannedQuantity} portions`
+                        : 'Not confirmed'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Actual Prepared Portions */}
               <div className="space-y-1.5">
                 <Label htmlFor="actualPrepared" className="text-xs font-semibold">
@@ -198,7 +238,7 @@ export const VendorOutcomesPage: React.FC = () => {
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="e.g. 750"
+                    placeholder="Enter portions prepared"
                     value={actualPrepared}
                     onChange={(e) => setActualPrepared(e.target.value)}
                     required
@@ -220,7 +260,7 @@ export const VendorOutcomesPage: React.FC = () => {
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="e.g. 710 (if measured)"
+                    placeholder="Enter student count (if measured)"
                     value={actualAttendance}
                     onChange={(e) => setActualAttendance(e.target.value)}
                   />

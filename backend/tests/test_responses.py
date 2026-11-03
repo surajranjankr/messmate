@@ -66,27 +66,29 @@ def test_response_rejected_after_deadline(client, student_auth_headers, db_sessi
     assert "deadline" in res.json()["detail"].lower()
 
 def test_counts_strictly_separate_no_response_from_not_eating(client, student_auth_headers, vendor_auth_headers, db_session):
+    past_open = datetime.now(timezone.utc) - timedelta(hours=1)
     future_time = datetime.now(timezone.utc) + timedelta(hours=3)
     meal = MealInstance(
         id="mi-test-counts",
         meal_date="2026-11-05",
         meal_type="LUNCH",
         menu_version_id="menu-v1",
+        response_open_time=past_open.isoformat(),
         response_deadline=future_time.isoformat(),
         status="RESPONSE_OPEN",
     )
     db_session.add(meal)
     db_session.commit()
 
-    # Initially 0 responses: all 750 registered students are 'noResponse', 'notEating' is 0
+    # Initially 0 responses: all active registered students (3 in seed) are 'noResponse', 'notEating' is 0
     res = client.get("/api/v1/responses/counts/mi-test-counts", headers=vendor_auth_headers)
     assert res.status_code == status.HTTP_200_OK
     counts = res.json()
     assert counts["definitelyEating"] == 0
     assert counts["probablyEating"] == 0
     assert counts["notEating"] == 0
-    assert counts["noResponse"] == 750
-    assert counts["totalRegistered"] == 750
+    assert counts["noResponse"] == 3
+    assert counts["totalRegistered"] == 3
 
     # Arjun submits NOT_EATING
     client.post(
@@ -98,5 +100,6 @@ def test_counts_strictly_separate_no_response_from_not_eating(client, student_au
     res2 = client.get("/api/v1/responses/counts/mi-test-counts", headers=vendor_auth_headers)
     counts2 = res2.json()
     assert counts2["notEating"] == 1
-    assert counts2["noResponse"] == 749  # 750 - 1
+    assert counts2["noResponse"] == 2  # 3 - 1
+    assert counts2["totalRegistered"] == 3
     assert counts2["definitelyEating"] == 0

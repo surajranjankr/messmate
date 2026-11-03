@@ -2,7 +2,7 @@
 // System Settings Page
 // ============================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,18 +10,81 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { resetToDefaults, initializeStorageIfEmpty } from '@/lib/storage';
 import { resetClock } from '@/lib/clock';
-import { Settings, RefreshCw, MessageSquare, Globe, Shield, CheckCircle2 } from 'lucide-react';
+import { Settings, RefreshCw, MessageSquare, Globe, Shield, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { settingsService } from '@/services/settingsService';
 
 export const SettingsPage: React.FC = () => {
   const [instituteName, setInstituteName] = useState('Indian Institute of Information Technology Dharwad');
-  const [timezone] = useState('Asia/Kolkata (IST +05:30)');
+  const [timezone, setTimezone] = useState('Asia/Kolkata');
   const [safetyMargin, setSafetyMargin] = useState('8');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    let isMounted = true;
+    async function loadSettings() {
+      try {
+        const data = await settingsService.fetchSettings();
+        if (isMounted && data) {
+          if (data.institutionName) setInstituteName(data.institutionName);
+          if (data.timezone) setTimezone(data.timezone);
+          if (data.safetyMarginPercentage !== undefined) {
+            setSafetyMargin(String(data.safetyMarginPercentage));
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('Failed to load settings:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    loadSettings();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaved(false);
+    setErrorMessage(null);
+
+    const marginNum = parseFloat(safetyMargin);
+    if (isNaN(marginNum) || marginNum < 0 || marginNum > 50) {
+      setErrorMessage('Safety margin must be a valid number between 0% and 50%.');
+      return;
+    }
+
+    if (!timezone.trim()) {
+      setErrorMessage('System timezone cannot be empty.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const updated = await settingsService.saveSettings({
+        institutionName: instituteName.trim(),
+        timezone: timezone.trim(),
+        safetyMarginPercentage: marginNum,
+      });
+
+      if (updated) {
+        if (updated.institutionName) setInstituteName(updated.institutionName);
+        if (updated.timezone) setTimezone(updated.timezone);
+        if (updated.safetyMarginPercentage !== undefined) {
+          setSafetyMargin(String(updated.safetyMarginPercentage));
+        }
+        setSaved(true);
+        setTimeout(() => setSaved(false), 4000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save parameters to server.';
+      setErrorMessage(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetData = () => {
@@ -51,7 +114,14 @@ export const SettingsPage: React.FC = () => {
       {saved && (
         <div className="p-3 bg-success-light text-success border border-success/30 rounded-xl text-xs font-semibold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>Settings saved to local storage!</span>
+          <span>Institution parameters saved successfully and persisted in database!</span>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="p-3 bg-error-light text-error border border-error/30 rounded-xl text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -61,6 +131,7 @@ export const SettingsPage: React.FC = () => {
           <CardTitle className="text-base flex items-center gap-2">
             <Globe className="w-4 h-4 text-primary" />
             <span>Institution Configuration</span>
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-text-secondary ml-1" />}
           </CardTitle>
           <CardDescription className="text-xs">
             Organizational parameters governing mess catering
@@ -74,19 +145,21 @@ export const SettingsPage: React.FC = () => {
                 id="instituteName"
                 value={instituteName}
                 onChange={(e) => setInstituteName(e.target.value)}
+                disabled={loading || saving}
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="timezone">System Timezone</Label>
+              <Label htmlFor="timezone">System Timezone (IANA)</Label>
               <Input
                 id="timezone"
                 value={timezone}
-                disabled
-                className="bg-lavender/30 text-text-secondary"
+                onChange={(e) => setTimezone(e.target.value)}
+                disabled={loading || saving}
+                placeholder="e.g. Asia/Kolkata, UTC, America/New_York"
               />
               <p className="text-[11px] text-text-secondary">
-                All notification schedules and deadlines operate strictly under Asia/Kolkata timezone.
+                Authoritative IANA timezone governing meal response deadlines, daily meal identification, and notification schedules.
               </p>
             </div>
 
@@ -98,8 +171,10 @@ export const SettingsPage: React.FC = () => {
                   type="number"
                   min="0"
                   max="50"
+                  step="0.5"
                   value={safetyMargin}
                   onChange={(e) => setSafetyMargin(e.target.value)}
+                  disabled={loading || saving}
                 />
                 <span className="absolute right-3 top-2.5 text-text-secondary">%</span>
               </div>
@@ -108,8 +183,15 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
 
-            <Button type="submit" size="sm">
-              Save Parameters
+            <Button type="submit" size="sm" disabled={loading || saving}>
+              {saving ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Parameters'
+              )}
             </Button>
           </form>
         </CardContent>

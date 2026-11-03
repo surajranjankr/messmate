@@ -19,6 +19,10 @@ class UserUpdate(CamelModel):
 class UserOut(UserBase):
     id: str
 
+class UserInDB(UserBase):
+    id: str
+    hashed_password: str
+
 class LoginRequest(CamelModel):
     email: str
     password: str

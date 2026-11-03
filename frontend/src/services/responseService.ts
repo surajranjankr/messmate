@@ -9,11 +9,14 @@ import {
   MealResponse,
   ResponseChoice,
   MealCounts,
+  User,
+  UserRole,
+  UserStatus,
 } from '../types';
 import { storageGet, storageSet, StorageKey } from '../lib/storage';
-import { isBeforeDeadline, generateId } from '../lib/utils';
+import { isBeforeDeadline, isAfterOpeningTime, generateId } from '../lib/utils';
 import { mealInstanceService } from './mealInstanceService';
-import { TOTAL_REGISTERED_STUDENTS } from '../mocks/seedData';
+import { DEMO_USERS } from '../mocks/seedData';
 import { apiClient } from './apiClient';
 
 export const responseService = {
@@ -63,8 +66,13 @@ export const responseService = {
       throw new Error('Meal instance not found.');
     }
 
-    // Strict deadline enforcement
-    if (!isBeforeDeadline(meal.responseDeadline)) {
+    // Strict window enforcement: opening_time <= now < closing_time
+    if (meal.status === 'UPCOMING' || !isAfterOpeningTime(meal.responseOpenTime)) {
+      throw new Error(
+        'The response window for this meal has not opened yet. Responses can only be submitted during the open window.'
+      );
+    }
+    if (!isBeforeDeadline(meal.responseDeadline) || meal.status === 'RESPONSE_CLOSED' || meal.status === 'COMPLETED') {
       throw new Error(
         'The deadline for this meal has passed. Responses can no longer be submitted or changed.'
       );
@@ -123,7 +131,12 @@ export const responseService = {
     choice: ResponseChoice
   ): Promise<MealResponse> {
     const meal = mealInstanceService.getMealInstance(mealInstanceId);
-    if (meal && !isBeforeDeadline(meal.responseDeadline)) {
+    if (meal && (meal.status === 'UPCOMING' || !isAfterOpeningTime(meal.responseOpenTime))) {
+      throw new Error(
+        'The response window for this meal has not opened yet. Responses can only be submitted during the open window.'
+      );
+    }
+    if (meal && (!isBeforeDeadline(meal.responseDeadline) || meal.status === 'RESPONSE_CLOSED' || meal.status === 'COMPLETED')) {
       throw new Error(
         'The deadline for this meal has passed. Responses can no longer be submitted or changed.'
       );
@@ -171,22 +184,34 @@ export const responseService = {
    * "No Response must remain a separate category. Never count it as Not Eating."
    */
   getAggregateCounts(mealInstanceId: string): MealCounts {
-    const responses = this._getAllResponses().filter(
-      (r) => r.mealInstanceId === mealInstanceId
+    const users = storageGet<User[]>(StorageKey.USERS, DEMO_USERS);
+    const eligibleStudents = users.filter(
+      (u) => u.role === UserRole.STUDENT && u.status === UserStatus.ACTIVE
     );
+    const eligibleIds = new Set(eligibleStudents.map((u) => u.id));
+    const totalRegistered = eligibleStudents.length;
+
+    const responses = this._getAllResponses().filter(
+      (r) => r.mealInstanceId === mealInstanceId && eligibleIds.has(r.studentId)
+    );
+
+    // Deduplicate per student to guarantee unique counts
+    const uniqueResponses = new Map<string, ResponseChoice>();
+    for (const r of responses) {
+      uniqueResponses.set(r.studentId, r.choice);
+    }
 
     let definitelyEating = 0;
     let probablyEating = 0;
     let notEating = 0;
 
-    for (const r of responses) {
-      if (r.choice === ResponseChoice.DEFINITELY_EATING) definitelyEating++;
-      else if (r.choice === ResponseChoice.PROBABLY_EATING) probablyEating++;
-      else if (r.choice === ResponseChoice.NOT_EATING) notEating++;
+    for (const choice of uniqueResponses.values()) {
+      if (choice === ResponseChoice.DEFINITELY_EATING) definitelyEating++;
+      else if (choice === ResponseChoice.PROBABLY_EATING) probablyEating++;
+      else if (choice === ResponseChoice.NOT_EATING) notEating++;
     }
 
     const totalResponded = definitelyEating + probablyEating + notEating;
-    const totalRegistered = TOTAL_REGISTERED_STUDENTS;
     const noResponse = Math.max(0, totalRegistered - totalResponded);
 
     return {

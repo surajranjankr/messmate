@@ -1,8 +1,10 @@
 # Environment variables and secrets
+# Environment secrets
 .env
 .env.*
 .env.local
 .env.*.local
+atlas-credentials.env
 !.env.example
 !.env.*.example
 !backend/.env.example

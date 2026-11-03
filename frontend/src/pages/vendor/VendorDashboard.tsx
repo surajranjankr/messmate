@@ -66,6 +66,22 @@ export const VendorDashboard: React.FC = () => {
     setCountsMap(counts);
     setRecsMap(recs);
     setDecisionsMap(decisions);
+
+    // Asynchronously synchronize with backend
+    meals.forEach(async (m) => {
+      try {
+        const [c, r, d] = await Promise.all([
+          responseService.fetchAggregateCounts(m.id),
+          forecastService.fetchRecommendation(m.id),
+          forecastService.fetchVendorDecision(m.id),
+        ]);
+        if (c) setCountsMap((prev) => ({ ...prev, [m.id]: c }));
+        if (r) setRecsMap((prev) => ({ ...prev, [m.id]: r }));
+        if (d !== undefined) setDecisionsMap((prev) => ({ ...prev, [m.id]: d }));
+      } catch {
+        // Fallback kept
+      }
+    });
   };
 
   useEffect(() => {
@@ -112,12 +128,12 @@ export const VendorDashboard: React.FC = () => {
         </Link>
       </div>
 
-      {/* Demonstration notice */}
+      {/* Dynamic Forecast Notice */}
       <div className="p-3 bg-lavender/50 border border-border-light rounded-xl flex items-center justify-between text-xs text-text-secondary">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary shrink-0" />
           <span>
-            <strong>Demonstration Prototype:</strong> Attendance recommendations are based on an illustrative vendor baseline of 700 students plus an 8% safety margin (756 portions).
+            <strong>Dynamic Demand Forecasting:</strong> Attendance and preparation recommendations are dynamically calculated from active student population, real-time responses, and historical nonresponse rates.
           </span>
         </div>
       </div>
@@ -248,7 +264,7 @@ export const VendorDashboard: React.FC = () => {
                       )}
 
                       <div className="text-[11px] text-text-secondary mt-1.5 flex justify-between">
-                        <span>Total Registered Students: {counts?.totalRegistered ?? 750}</span>
+                        <span>Total Registered Students: {counts?.totalRegistered ?? 0}</span>
                         <span className="italic">No Response is strictly separated from Not Eating</span>
                       </div>
                     </div>
@@ -262,18 +278,30 @@ export const VendorDashboard: React.FC = () => {
                             <span>Recommended Preparation</span>
                           </span>
                           <Badge variant="muted" className="text-[10px]">
-                            Provisional 8% Margin
+                            {Math.round(rec.safetyMarginFraction * 100)}% Margin
                           </Badge>
                         </div>
 
-                        <div className="flex items-baseline gap-3">
-                          <span className="text-3xl font-black text-primary">
-                            {rec.recommendedPortions}
-                          </span>
-                          <span className="text-xs text-text-secondary font-medium">
-                            Portions recommended (Baseline {rec.baselineAttendance} + {rec.safetyMarginFraction * 100}% safety margin)
-                          </span>
-                        </div>
+                        {rec.dataQualityStatus === 'INSUFFICIENT' ? (
+                          <div className="p-2.5 rounded-lg bg-warning-light/50 border border-warning/30 text-warning-dark text-xs space-y-1">
+                            <div className="font-semibold flex items-center gap-1 text-warning">
+                              <AlertTriangle className="w-4 h-4 shrink-0" />
+                              <span>Manual Preparation Required</span>
+                            </div>
+                            <p className="text-[11px] text-text-secondary">
+                              Insufficient response history to generate a reliable preparation recommendation. Please enter a manual preparation quantity.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-baseline gap-3">
+                            <span className="text-3xl font-black text-primary">
+                              {rec.recommendedPortions ?? 0}
+                            </span>
+                            <span className="text-xs text-text-secondary font-medium">
+                              Portions recommended (Expected demand {rec.expectedAttendance} + {Math.round(rec.safetyMarginFraction * 100)}% safety margin)
+                            </span>
+                          </div>
+                        )}
 
                         {decision && (
                           <div className="pt-2 border-t border-primary/10 flex items-center justify-between text-xs">

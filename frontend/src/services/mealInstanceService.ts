@@ -7,8 +7,10 @@
 import { MealInstance, MealInstanceStatus, MealType } from '../types';
 import { storageGet, storageSet, StorageKey } from '../lib/storage';
 import { getCurrentTime } from '../lib/clock';
+import { isAfterOpeningTime } from '../lib/utils';
 import { parseISO, format, isBefore, isAfter } from 'date-fns';
 import { menuService } from './menuService';
+import { apiClient } from './apiClient';
 
 export const mealInstanceService = {
   /**
@@ -47,6 +49,8 @@ export const mealInstanceService = {
         newStatus = MealInstanceStatus.COMPLETED;
       } else if (isPastDeadline) {
         newStatus = MealInstanceStatus.RESPONSE_CLOSED;
+      } else if (instance.responseOpenTime && !isAfterOpeningTime(instance.responseOpenTime)) {
+        newStatus = MealInstanceStatus.UPCOMING;
       } else {
         newStatus = MealInstanceStatus.RESPONSE_OPEN;
       }
@@ -90,7 +94,7 @@ export const mealInstanceService = {
   },
 
   /**
-   * Get the next meal requiring response (RESPONSE_OPEN or earliest UPCOMING).
+   * Get the next meal requiring response or incoming preparation (RESPONSE_OPEN or earliest UPCOMING).
    */
   getNextActionableMeal(): MealInstance | null {
     const instances = this.getAllMealInstances();
@@ -102,11 +106,44 @@ export const mealInstanceService = {
       return openMeals[0]!;
     }
 
+    const MEAL_ORDER: Record<string, number> = {
+      BREAKFAST: 1,
+      LUNCH: 2,
+      SNACKS: 3,
+      DINNER: 4,
+    };
+
     const upcomingMeals = instances
       .filter((inst) => inst.status === MealInstanceStatus.UPCOMING)
-      .sort((a, b) => parseISO(a.mealDate).getTime() - parseISO(b.mealDate).getTime());
+      .sort((a, b) => {
+        const dateDiff = parseISO(a.mealDate).getTime() - parseISO(b.mealDate).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (MEAL_ORDER[a.mealType] ?? 99) - (MEAL_ORDER[b.mealType] ?? 99);
+      });
 
-    return upcomingMeals[0] ?? null;
+    if (upcomingMeals.length > 0) {
+      return upcomingMeals[0]!;
+    }
+
+    // Fallback: earliest upcoming or non-completed scheduled meal
+    const remaining = instances
+      .filter((inst) => inst.status !== MealInstanceStatus.COMPLETED)
+      .sort((a, b) => parseISO(a.responseDeadline).getTime() - parseISO(b.responseDeadline).getTime());
+
+    return remaining[0] ?? instances[0] ?? null;
+  },
+
+  /**
+   * Asynchronously fetch authoritative actionable meal from backend API,
+   * falling back to local calculation if offline.
+   */
+  async fetchActionableMealInstance(): Promise<MealInstance | null> {
+    try {
+      const res = await apiClient.get<MealInstance>('/meals/actionable');
+      return res;
+    } catch {
+      return this.getNextActionableMeal();
+    }
   },
 
   /**

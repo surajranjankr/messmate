@@ -7,6 +7,7 @@ import { twMerge } from 'tailwind-merge';
 import { format, parseISO } from 'date-fns';
 import { MealType, DayOfWeek, ResponseChoice } from '../types';
 import { getCurrentTime } from './clock';
+import { settingsService } from '../services/settingsService';
 
 // --- Class Name Utility ---
 
@@ -15,21 +16,78 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+// --- Timezone Resolution ---
+
+export function getInstitutionTimezone(): string {
+  try {
+    const s = settingsService.getSettings();
+    if (s && s.timezone) return s.timezone;
+  } catch {
+    // fallback
+  }
+  return 'Asia/Kolkata';
+}
+
 // --- Date / Time Formatting ---
 
 /** Format an ISO date string to a human-readable date (e.g. "Nov 3, 2026") */
 export function formatDate(isoString: string): string {
-  return format(parseISO(isoString), 'MMM d, yyyy');
+  try {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoString)) {
+      const [year, month, day] = isoString.split('-').map(Number);
+      const d = new Date(year!, month! - 1, day!);
+      return format(d, 'MMM d, yyyy');
+    }
+    const d = new Date(isoString);
+    const tz = getInstitutionTimezone();
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: tz,
+    }).format(d);
+  } catch {
+    return format(parseISO(isoString), 'MMM d, yyyy');
+  }
 }
 
-/** Format an ISO date string to time only (e.g. "9:00 PM") */
+/** Format an ISO date string to time only in configured institution timezone (e.g. "9:00 PM") */
 export function formatTime(isoString: string): string {
-  return format(parseISO(isoString), 'h:mm a');
+  try {
+    const d = new Date(isoString);
+    const tz = getInstitutionTimezone();
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+      timeZone: tz,
+    }).format(d);
+  } catch {
+    return format(parseISO(isoString), 'h:mm a');
+  }
 }
 
-/** Format an ISO date string to full date+time (e.g. "Nov 3, 2026 at 9:00 PM") */
+/** Format an ISO date string to full date+time in configured institution timezone */
 export function formatDateTime(isoString: string): string {
-  return format(parseISO(isoString), "MMM d, yyyy 'at' h:mm a");
+  try {
+    const d = new Date(isoString);
+    const tz = getInstitutionTimezone();
+    const datePart = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: tz,
+    }).format(d);
+    const timePart = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true,
+      timeZone: tz,
+    }).format(d);
+    return `${datePart} at ${timePart}`;
+  } catch {
+    return format(parseISO(isoString), "MMM d, yyyy 'at' h:mm a");
+  }
 }
 
 // --- Enum Formatting ---
@@ -82,6 +140,27 @@ export function isBeforeDeadline(deadline: string): boolean {
   const deadlineDate = parseISO(deadline);
   const now = getCurrentTime();
   return now.getTime() < deadlineDate.getTime();
+}
+
+/**
+ * Check if the current time is at or after the given ISO 8601 open string.
+ */
+export function isAfterOpeningTime(openTime?: string): boolean {
+  if (!openTime) return true;
+  const openDate = parseISO(openTime);
+  const now = getCurrentTime();
+  return now.getTime() >= openDate.getTime();
+}
+
+/**
+ * Check if a meal response window is currently open:
+ * openingTime <= now < deadlineTime
+ */
+export function isResponseWindowOpen(meal: { responseOpenTime?: string; responseDeadline: string; status?: string }): boolean {
+  if (meal.status === 'RESPONSE_CLOSED' || meal.status === 'COMPLETED') {
+    return false;
+  }
+  return isAfterOpeningTime(meal.responseOpenTime) && isBeforeDeadline(meal.responseDeadline);
 }
 
 // --- ID Generation ---

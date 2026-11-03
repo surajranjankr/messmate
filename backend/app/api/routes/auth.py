@@ -1,19 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.db.session import get_db
-from app.models.user import User
 from app.schemas.user import LoginRequest, TokenResponse, UserOut
 from app.core.security import verify_password, create_access_token
 from app.core.config import settings
 from app.dependencies.auth import get_current_user
+from app.repositories.user import IUserRepository
+from app.dependencies.repositories import get_user_repository
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Authenticate user with email and password, returning JWT access token."""
-    email = request.email.strip().lower()
-    user = db.query(User).filter(User.email.ilike(email)).first()
+async def login(
+    request: LoginRequest,
+    user_repo: IUserRepository = Depends(get_user_repository)
+):
+    """Authenticate user with email and password via active repository backend."""
+    user = await user_repo.get_by_email_with_password(request.email)
 
     if not user or not verify_password(request.password, user.hashed_password):
         msg = (
@@ -51,17 +52,11 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     )
 
 @router.get("/me", response_model=UserOut)
-def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: UserOut = Depends(get_current_user)):
     """Retrieve details of the currently authenticated user."""
-    return UserOut(
-        id=current_user.id,
-        display_name=current_user.display_name,
-        email=current_user.email,
-        role=current_user.role,
-        status=current_user.status,
-    )
+    return current_user
 
 @router.post("/logout")
-def logout(current_user: User = Depends(get_current_user)):
+async def logout(current_user: UserOut = Depends(get_current_user)):
     """Acknowledge user logout."""
     return {"message": "Logged out successfully"}

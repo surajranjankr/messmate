@@ -12,13 +12,13 @@ describe('Forecast & Outcome Services', () => {
     initializeStorageIfEmpty();
   });
 
-  it('computes recommended portions based on baseline B and margin m: Q = ceil(F * (1 + m))', () => {
+  it('computes recommended portions based on baseline B, responses, and margin m: Q = ceil(F * (1 + m))', () => {
     const rec = forecastService.getRecommendation(mealId);
-    expect(rec.baselineAttendance).toBe(700);
-    expect(rec.expectedAttendance).toBe(700);
+    expect(rec.baselineAttendance).toBe(3);
+    expect(rec.expectedAttendance).toBe(2.1);
     expect(rec.safetyMarginFraction).toBe(0.08);
-    // ceil(700 * 1.08) = 756
-    expect(rec.recommendedPortions).toBe(756);
+    // F = 3 * 0.70 = 2.1; ceil(2.1 * 1.08) = 3
+    expect(rec.recommendedPortions).toBe(3);
   });
 
   it('accepts vendor overrides without modifying the original recommendation', () => {
@@ -32,13 +32,13 @@ describe('Forecast & Outcome Services', () => {
     );
 
     expect(decision.finalPlannedQuantity).toBe(800);
-    expect(decision.originalRecommendation).toBe(756);
+    expect(decision.originalRecommendation).toBe(3);
     expect(decision.status).toBe(VendorDecisionStatus.OVERRIDDEN);
     expect(decision.overrideReason).toBe('Expecting high attendance due to sports tournament');
 
     // Original recommendation must remain unchanged
     const currentRec = forecastService.getRecommendation(mealId);
-    expect(currentRec.recommendedPortions).toBe(756);
+    expect(currentRec.recommendedPortions).toBe(3);
   });
 
   it('validates planned quantity is a non-negative whole number', () => {

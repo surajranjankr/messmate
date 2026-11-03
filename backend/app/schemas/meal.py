@@ -7,4 +7,5 @@ class MealInstanceSchema(CamelModel):
     meal_type: str
     menu_version_id: str
     response_deadline: str
+    response_open_time: Optional[str] = None
     status: str

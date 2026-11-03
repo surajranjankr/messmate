@@ -1,6 +1,6 @@
-# MessMate Backend (FastAPI + SQLite)
+# MessMate Backend (FastAPI + SQLite / MongoDB Atlas)
 
-The FastAPI backend for **MessMate**, providing persistent database storage, server-side deadline enforcement, JWT role-based access control, baseline forecasting, and audit logging.
+The FastAPI backend for **MessMate**, providing persistent database storage, server-side deadline enforcement, JWT role-based access control, baseline forecasting, modular external integrations (Resend Email), and dual SQLite/MongoDB Atlas persistence.
 
 ---
 
@@ -9,10 +9,31 @@ The FastAPI backend for **MessMate**, providing persistent database storage, ser
 - **Python**: 3.13.5 (in `backend/.venv`)
 - **Web Framework**: FastAPI 0.162.0 / Starlette
 - **ASGI Server**: Uvicorn 0.54.0
-- **ORM & DB**: SQLAlchemy 2.1.6 with SQLite (`backend/data/messmate.db`)
+- **Database Engine**: Configurable via `DATABASE_BACKEND`:
+  - `sqlite`: SQLAlchemy 2.1.6 with SQLite (`backend/data/messmate.db`)
+  - `mongodb`: Motor 3.7.1 & PyMongo 4.19.0 async driver targeting MongoDB Atlas
+- **External Integrations**:
+  - Resend Email Adapter (`app.integrations.email`)
+  - Deferred WhatsApp Client (`app.integrations.whatsapp`)
 - **Data Validation**: Pydantic v2.14.2 (with CamelModel for camelCase frontend serialization)
 - **Security**: Direct `bcrypt` password hashing, `PyJWT` signed Bearer tokens
-- **Testing**: `pytest 9.2.0`, `pytest-asyncio`, `httpx` (33 automated tests passing)
+- **Testing**: `pytest 9.2.0`, `pytest-asyncio`, `httpx` (36 automated tests passing)
+
+---
+
+## Demo Accounts & Test Credentials
+
+> [!WARNING]
+> **DEVELOPMENT & TESTING ONLY:**
+> The credentials below are provisioned by `app.db.initialization` exclusively for local evaluation and automated testing. They must not be deployed to public or production environments.
+
+Default seed password for all demo accounts: **`demo123`**
+
+- **Student:** `arjun@iiitdwd.ac.in` (Arjun Sharma)
+- **Student:** `priya@iiitdwd.ac.in` (Priya Patel)
+- **Student:** `rahul@iiitdwd.ac.in` (Rahul Verma)
+- **Vendor:** `vendor@iiitdwd.ac.in` (Mess Kitchen Manager)
+- **Admin:** `admin@iiitdwd.ac.in` (Mess Committee Admin)
 
 ---
 

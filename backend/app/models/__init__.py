@@ -6,6 +6,7 @@ from app.models.schedule import NotificationSchedule
 from app.models.notification import Notification
 from app.models.forecast import ForecastRecommendation, VendorDecision
 from app.models.outcome import MealOutcome
+from app.models.setting import InstitutionSetting
 
 __all__ = [
     "User",
@@ -19,4 +20,5 @@ __all__ = [
     "ForecastRecommendation",
     "VendorDecision",
     "MealOutcome",
+    "InstitutionSetting",
 ]

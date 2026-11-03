@@ -25,6 +25,7 @@ import {
   formatResponseChoice,
   getDayOfWeekFromDate,
   isBeforeDeadline,
+  isAfterOpeningTime,
 } from '@/lib/utils';
 import {
   Utensils,
@@ -95,11 +96,13 @@ export const MealResponsePage: React.FC = () => {
     );
   }
 
-  const isDeadlinePassed = !isBeforeDeadline(meal.responseDeadline);
+  const isNotYetOpen = meal.status === 'UPCOMING' || !isAfterOpeningTime(meal.responseOpenTime);
+  const isDeadlinePassed = !isBeforeDeadline(meal.responseDeadline) || meal.status === 'RESPONSE_CLOSED' || meal.status === 'COMPLETED';
+  const isInteractive = !isNotYetOpen && !isDeadlinePassed;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedChoice) return;
+    if (!user || !selectedChoice || !isInteractive) return;
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -144,7 +147,12 @@ export const MealResponsePage: React.FC = () => {
                 <Badge variant="secondary" className="font-semibold text-xs">
                   {formatMealType(meal.mealType)}
                 </Badge>
-                {isDeadlinePassed ? (
+                {isNotYetOpen ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>Not Yet Open</span>
+                  </Badge>
+                ) : isDeadlinePassed ? (
                   <Badge variant="error" className="gap-1">
                     <AlertCircle className="w-3 h-3" />
                     <span>Response Closed</span>
@@ -162,9 +170,9 @@ export const MealResponsePage: React.FC = () => {
             </div>
 
             <div className="text-xs text-text-secondary sm:text-right">
-              <div>Response Deadline:</div>
+              <div>Response Window:</div>
               <div className="font-semibold text-text-primary text-sm">
-                {formatTime(meal.responseDeadline)}
+                {meal.responseOpenTime ? `${formatTime(meal.responseOpenTime)} – ` : ''}{formatTime(meal.responseDeadline)}
               </div>
               <div className="text-[11px] text-text-secondary">
                 {formatDate(meal.responseDeadline)}
@@ -175,6 +183,14 @@ export const MealResponsePage: React.FC = () => {
 
         <CardContent className="p-6 space-y-6">
           {/* Status Alert */}
+          {isNotYetOpen && (
+            <div className="flex items-center gap-2 p-4 bg-muted/60 border border-border rounded-xl text-sm font-medium text-text-secondary">
+              <Info className="w-5 h-5 shrink-0 text-primary" />
+              <span>
+                This response window opens at {formatTime(meal.responseOpenTime || '')} on {formatDate(meal.responseOpenTime || meal.mealDate)}. Early responses are not accepted.
+              </span>
+            </div>
+          )}
           {successMessage && (
             <div className="flex items-center gap-2 p-4 bg-success-light text-success border border-success/30 rounded-xl text-sm font-medium">
               <CheckCircle2 className="w-5 h-5 shrink-0" />
@@ -273,13 +289,13 @@ export const MealResponsePage: React.FC = () => {
                 {/* Choice 1: Definitely Eating */}
                 <button
                   type="button"
-                  disabled={isDeadlinePassed}
+                  disabled={!isInteractive}
                   onClick={() => setSelectedChoice(ResponseChoice.DEFINITELY_EATING)}
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer text-center ${
                     selectedChoice === ResponseChoice.DEFINITELY_EATING
                       ? 'border-success bg-success-light/40 shadow-sm'
                       : 'border-border bg-card hover:bg-lavender/40'
-                  } ${isDeadlinePassed ? 'cursor-not-allowed opacity-75' : ''}`}
+                  } ${!isInteractive ? 'cursor-not-allowed opacity-75' : ''}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-success-light text-success flex items-center justify-center mb-2 font-bold text-sm">
                     {selectedChoice === ResponseChoice.DEFINITELY_EATING ? <Check className="w-5 h-5" /> : '1'}
@@ -293,13 +309,13 @@ export const MealResponsePage: React.FC = () => {
                 {/* Choice 2: Probably Eating */}
                 <button
                   type="button"
-                  disabled={isDeadlinePassed}
+                  disabled={!isInteractive}
                   onClick={() => setSelectedChoice(ResponseChoice.PROBABLY_EATING)}
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer text-center ${
                     selectedChoice === ResponseChoice.PROBABLY_EATING
                       ? 'border-warning bg-warning-light/40 shadow-sm'
                       : 'border-border bg-card hover:bg-lavender/40'
-                  } ${isDeadlinePassed ? 'cursor-not-allowed opacity-75' : ''}`}
+                  } ${!isInteractive ? 'cursor-not-allowed opacity-75' : ''}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-warning-light text-warning flex items-center justify-center mb-2 font-bold text-sm">
                     {selectedChoice === ResponseChoice.PROBABLY_EATING ? <Check className="w-5 h-5" /> : '2'}
@@ -313,13 +329,13 @@ export const MealResponsePage: React.FC = () => {
                 {/* Choice 3: Not Eating */}
                 <button
                   type="button"
-                  disabled={isDeadlinePassed}
+                  disabled={!isInteractive}
                   onClick={() => setSelectedChoice(ResponseChoice.NOT_EATING)}
                   className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer text-center ${
                     selectedChoice === ResponseChoice.NOT_EATING
                       ? 'border-error bg-error-light/40 shadow-sm'
                       : 'border-border bg-card hover:bg-lavender/40'
-                  } ${isDeadlinePassed ? 'cursor-not-allowed opacity-75' : ''}`}
+                  } ${!isInteractive ? 'cursor-not-allowed opacity-75' : ''}`}
                 >
                   <div className="w-8 h-8 rounded-full bg-error-light text-error flex items-center justify-center mb-2 font-bold text-sm">
                     {selectedChoice === ResponseChoice.NOT_EATING ? <Check className="w-5 h-5" /> : '3'}
@@ -344,7 +360,7 @@ export const MealResponsePage: React.FC = () => {
                 )}
               </div>
 
-              {!isDeadlinePassed && (
+              {isInteractive && (
                 <Button
                   type="submit"
                   size="lg"

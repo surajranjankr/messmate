@@ -40,6 +40,54 @@ export const outcomeService = {
   },
 
   /**
+   * Fetch all outcomes from backend API.
+   */
+  async fetchAllOutcomes(): Promise<MealOutcome[]> {
+    try {
+      const outcomes = await apiClient.get<MealOutcome[]>('/outcomes');
+      if (outcomes && Array.isArray(outcomes)) {
+        storageSet(StorageKey.MEAL_OUTCOMES, outcomes);
+        return outcomes;
+      }
+    } catch (err: unknown) {
+      console.warn('Backend fetchAllOutcomes deferred:', err);
+    }
+    return this.getAllOutcomes();
+  },
+
+  /**
+   * Save or update an outcome record asynchronously with backend synchronization.
+   */
+  async saveOutcomeAsync(outcomeData: {
+    mealInstanceId: string;
+    actualAttendance?: number;
+    actualPreparedQuantity?: number;
+    preparedUnit: string;
+    leftoverQuantity?: number;
+    leftoverUnit?: string;
+    notes?: string;
+  }): Promise<MealOutcome> {
+    const local = this.saveOutcome(outcomeData);
+    try {
+      const backendRes = await apiClient.post<MealOutcome>(`/outcomes/${outcomeData.mealInstanceId}`, outcomeData);
+      if (backendRes) {
+        const outcomes = this.getAllOutcomes();
+        const idx = outcomes.findIndex((o) => o.mealInstanceId === outcomeData.mealInstanceId);
+        if (idx >= 0) {
+          outcomes[idx] = backendRes;
+        } else {
+          outcomes.push(backendRes);
+        }
+        storageSet(StorageKey.MEAL_OUTCOMES, outcomes);
+        return backendRes;
+      }
+    } catch (err: unknown) {
+      console.warn('Backend outcome sync deferred:', err);
+    }
+    return local;
+  },
+
+  /**
    * Save or update an outcome record.
    * Keeps portions, headcount, and leftover weight strictly separate with explicit units.
    */

@@ -120,6 +120,7 @@ export interface MealInstance {
   mealType: MealType;
   menuVersionId: string;
   responseDeadline: string; // ISO 8601 with timezone
+  responseOpenTime?: string; // ISO 8601 with timezone
   status: MealInstanceStatus;
 }
 
@@ -145,15 +146,20 @@ export interface ForecastRecommendation {
   baselineAttendance: number;
   expectedAttendance: number;
   safetyMarginFraction: number;
-  recommendedPortions: number;
-  forecastMethod: ForecastMethod;
-  dataQualityStatus: DataQualityStatus;
+  recommendedPortions?: number | null;
+  forecastMethod: ForecastMethod | string;
+  dataQualityStatus: DataQualityStatus | string;
   explanation: string;
+  definitelyEating?: number;
+  probablyEating?: number;
+  notEating?: number;
+  noResponse?: number;
+  nonresponseAttendanceRate?: number | null;
 }
 
 export interface VendorDecision {
   mealInstanceId: string;
-  originalRecommendation: number;
+  originalRecommendation?: number | null;
   finalPlannedQuantity: number;
   overrideReason?: string;
   status: VendorDecisionStatus;

@@ -10,7 +10,8 @@ class MealInstance(Base):
     meal_type = Column(String(32), nullable=False)              # BREAKFAST, LUNCH, SNACKS, DINNER
     menu_version_id = Column(String(64), ForeignKey("menu_versions.id"), nullable=False, index=True)
     response_deadline = Column(String(64), nullable=False)      # ISO 8601 with timezone (e.g. Asia/Kolkata)
-    status = Column(String(32), default="RESPONSE_OPEN", nullable=False) # UPCOMING, RESPONSE_OPEN, RESPONSE_CLOSED, COMPLETED
+    response_open_time = Column(String(64), nullable=True)     # ISO 8601 with timezone (e.g. Asia/Kolkata)
+    status = Column(String(32), default="UPCOMING", nullable=False) # UPCOMING, RESPONSE_OPEN, RESPONSE_CLOSED, COMPLETED
 
     menu_version = relationship("MenuVersion", back_populates="meal_instances")
     responses = relationship("MealResponse", back_populates="meal_instance", cascade="all, delete-orphan")
