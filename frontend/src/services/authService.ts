@@ -102,9 +102,36 @@ export const authService = {
   },
 
   /**
+   * Ensure the active session has a valid JWT Bearer token for backend calls.
+   * Seamlessly re-authenticates if the token was lost or expired during development.
+   */
+  async ensureValidToken(): Promise<string | null> {
+    const existingToken = apiClient.getToken();
+    if (existingToken) return existingToken;
+
+    const currentUser = storageGet<User | null>(StorageKey.CURRENT_USER, null);
+    if (currentUser?.email) {
+      try {
+        const response = await apiClient.post<TokenResponse>('/auth/login', {
+          email: currentUser.email,
+          password: DEMO_PASSWORD,
+        });
+        if (response?.accessToken) {
+          apiClient.setToken(response.accessToken);
+          return response.accessToken;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+    return null;
+  },
+
+  /**
    * Asynchronously fetch registered users from backend.
    */
   async fetchUsers(): Promise<User[]> {
+    await this.ensureValidToken();
     try {
       const users = await apiClient.get<User[]>('/users');
       if (users && Array.isArray(users)) {
@@ -135,7 +162,9 @@ export const authService = {
     storageSet(StorageKey.USERS, updated);
 
     // Sync in background with backend
-    apiClient.post('/users', userData).catch(() => {});
+    this.ensureValidToken().then(() => {
+      apiClient.post('/users', userData).catch(() => {});
+    });
 
     return newUser;
   },
@@ -144,6 +173,7 @@ export const authService = {
    * Asynchronously add a new user and persist directly to FastAPI backend (MongoDB/SQLite).
    */
   async addUserAsync(userData: Omit<User, 'id'>): Promise<User> {
+    await this.ensureValidToken();
     const users = storageGet<User[]>(StorageKey.USERS, []);
 
     if (users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
@@ -184,7 +214,9 @@ export const authService = {
     }
 
     // Sync in background with backend
-    apiClient.patch(`/users/${id}`, updates).catch(() => {});
+    this.ensureValidToken().then(() => {
+      apiClient.patch(`/users/${id}`, updates).catch(() => {});
+    });
 
     return updatedUser;
   },
@@ -193,6 +225,7 @@ export const authService = {
    * Asynchronously update user details and persist to backend.
    */
   async updateUserAsync(id: string, updates: Partial<User>): Promise<User> {
+    await this.ensureValidToken();
     const users = storageGet<User[]>(StorageKey.USERS, []);
     const index = users.findIndex((u) => u.id === id);
 
@@ -218,7 +251,9 @@ export const authService = {
     const newStatus = user.status === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
 
     // Sync with backend endpoint
-    apiClient.patch(`/users/${id}/status`).catch(() => {});
+    this.ensureValidToken().then(() => {
+      apiClient.patch(`/users/${id}/status`).catch(() => {});
+    });
 
     return this.updateUser(id, { status: newStatus });
   },
@@ -227,6 +262,7 @@ export const authService = {
    * Asynchronously toggle user status and persist to backend.
    */
   async toggleUserStatusAsync(id: string): Promise<User> {
+    await this.ensureValidToken();
     const users = storageGet<User[]>(StorageKey.USERS, []);
     const user = users.find((u) => u.id === id);
     if (!user) throw new Error('User not found.');
@@ -252,13 +288,16 @@ export const authService = {
     const filtered = users.filter((u) => u.id !== id);
     storageSet(StorageKey.USERS, filtered);
 
-    apiClient.delete(`/users/${id}`).catch(() => {});
+    this.ensureValidToken().then(() => {
+      apiClient.delete(`/users/${id}`).catch(() => {});
+    });
   },
 
   /**
    * Asynchronously delete a user account and await backend deletion.
    */
   async deleteUserAsync(id: string): Promise<void> {
+    await this.ensureValidToken();
     const users = storageGet<User[]>(StorageKey.USERS, []);
     const filtered = users.filter((u) => u.id !== id);
     storageSet(StorageKey.USERS, filtered);

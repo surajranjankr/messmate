@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Users, Plus, Search, UserCheck, UserX, Edit, Shield, CheckCircle2, Trash2 } from 'lucide-react';
+import { Users, Plus, Search, UserCheck, UserX, Edit, Shield, CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 
 export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -41,7 +41,7 @@ export const UserManagementPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.STUDENT);
   const [modalError, setModalError] = useState<string | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; isError?: boolean } | null>(null);
 
   // Delete Confirmation State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -64,9 +64,9 @@ export const UserManagementPage: React.FC = () => {
     loadUsers();
   }, []);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
+  const showToast = (msg: string, isError = false) => {
+    setToastMessage({ text: msg, isError });
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleOpenAdd = () => {
@@ -128,7 +128,7 @@ export const UserManagementPage: React.FC = () => {
       await loadUsers();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error changing status.';
-      showToast(msg);
+      showToast(msg, true);
     }
   };
 
@@ -148,7 +148,7 @@ export const UserManagementPage: React.FC = () => {
       await loadUsers();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to delete user.';
-      showToast(msg);
+      showToast(msg, true);
     } finally {
       setIsDeleting(false);
     }
@@ -182,9 +182,19 @@ export const UserManagementPage: React.FC = () => {
       </div>
 
       {toastMessage && (
-        <div className="p-3 bg-success-light text-success border border-success/30 rounded-xl text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span>{toastMessage}</span>
+        <div
+          className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+            toastMessage.isError
+              ? 'bg-error-light text-error border-error/30'
+              : 'bg-success-light text-success border-success/30'
+          }`}
+        >
+          {toastMessage.isError ? (
+            <AlertTriangle className="w-4 h-4 shrink-0 text-error" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-success" />
+          )}
+          <span>{toastMessage.text}</span>
         </div>
       )}
 
