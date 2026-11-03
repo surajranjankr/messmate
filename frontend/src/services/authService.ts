@@ -141,6 +141,28 @@ export const authService = {
   },
 
   /**
+   * Asynchronously add a new user and persist directly to FastAPI backend (MongoDB/SQLite).
+   */
+  async addUserAsync(userData: Omit<User, 'id'>): Promise<User> {
+    const users = storageGet<User[]>(StorageKey.USERS, []);
+
+    if (users.some((u) => u.email.toLowerCase() === userData.email.toLowerCase())) {
+      throw new Error('A user with this email already exists.');
+    }
+
+    // Call backend API
+    const created = await apiClient.post<User>('/users', userData);
+    const newUser: User = created?.id ? created : {
+      ...userData,
+      id: `user-${generateId().slice(0, 8)}`,
+    };
+
+    const updated = [...users.filter((u) => u.id !== newUser.id), newUser];
+    storageSet(StorageKey.USERS, updated);
+    return newUser;
+  },
+
+  /**
    * Update an existing user's details or status.
    */
   updateUser(id: string, updates: Partial<User>): User {
@@ -168,6 +190,25 @@ export const authService = {
   },
 
   /**
+   * Asynchronously update user details and persist to backend.
+   */
+  async updateUserAsync(id: string, updates: Partial<User>): Promise<User> {
+    const users = storageGet<User[]>(StorageKey.USERS, []);
+    const index = users.findIndex((u) => u.id === id);
+
+    if (index === -1) {
+      throw new Error('User not found.');
+    }
+
+    const updatedUser = { ...users[index]!, ...updates, id };
+    users[index] = updatedUser;
+    storageSet(StorageKey.USERS, users);
+
+    await apiClient.patch(`/users/${id}`, updates);
+    return updatedUser;
+  },
+
+  /**
    * Toggle user active/inactive status.
    */
   toggleUserStatus(id: string): User {
@@ -177,8 +218,51 @@ export const authService = {
     const newStatus = user.status === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
 
     // Sync with backend endpoint
-    apiClient.patch(`/users/${id}/toggle-status`).catch(() => {});
+    apiClient.patch(`/users/${id}/status`).catch(() => {});
 
     return this.updateUser(id, { status: newStatus });
+  },
+
+  /**
+   * Asynchronously toggle user status and persist to backend.
+   */
+  async toggleUserStatusAsync(id: string): Promise<User> {
+    const users = storageGet<User[]>(StorageKey.USERS, []);
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new Error('User not found.');
+    const newStatus = user.status === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+
+    try {
+      const res = await apiClient.patch<User>(`/users/${id}/status`);
+      if (res) {
+        return this.updateUser(id, { status: res.status });
+      }
+    } catch {
+      // Local fallback
+    }
+
+    return this.updateUser(id, { status: newStatus });
+  },
+
+  /**
+   * Permanently delete a user account from storage and backend.
+   */
+  deleteUser(id: string): void {
+    const users = storageGet<User[]>(StorageKey.USERS, []);
+    const filtered = users.filter((u) => u.id !== id);
+    storageSet(StorageKey.USERS, filtered);
+
+    apiClient.delete(`/users/${id}`).catch(() => {});
+  },
+
+  /**
+   * Asynchronously delete a user account and await backend deletion.
+   */
+  async deleteUserAsync(id: string): Promise<void> {
+    const users = storageGet<User[]>(StorageKey.USERS, []);
+    const filtered = users.filter((u) => u.id !== id);
+    storageSet(StorageKey.USERS, filtered);
+
+    await apiClient.delete(`/users/${id}`);
   },
 };

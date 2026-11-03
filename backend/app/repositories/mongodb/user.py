@@ -156,3 +156,7 @@ class MongoUserRepository(IUserRepository):
             role=doc["role"],
             status=new_status,
         )
+
+    async def delete_user(self, user_id: str) -> bool:
+        res = await self.collection.delete_one({"_id": user_id})
+        return res.deleted_count > 0

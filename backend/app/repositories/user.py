@@ -40,3 +40,8 @@ class IUserRepository(ABC):
     async def toggle_status(self, user_id: str) -> Optional[UserOut]:
         """Toggle user status between ACTIVE and INACTIVE."""
         pass
+
+    @abstractmethod
+    async def delete_user(self, user_id: str) -> bool:
+        """Permanently delete user by id."""
+        pass

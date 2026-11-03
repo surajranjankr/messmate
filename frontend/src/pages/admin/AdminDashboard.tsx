@@ -27,6 +27,12 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     setSummary(reportService.getDashboardSummary());
+    reportService
+      .fetchDashboardSummary()
+      .then((live) => {
+        if (live) setSummary(live);
+      })
+      .catch(() => {});
   }, []);
 
   return (

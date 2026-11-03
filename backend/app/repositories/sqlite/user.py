@@ -134,3 +134,11 @@ class SqliteUserRepository(IUserRepository):
             role=u.role,
             status=u.status,
         )
+
+    async def delete_user(self, user_id: str) -> bool:
+        u = self.session.query(User).filter(User.id == user_id).first()
+        if not u:
+            return False
+        self.session.delete(u)
+        self.session.commit()
+        return True

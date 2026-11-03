@@ -26,7 +26,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Users, Plus, Search, UserCheck, UserX, Edit, Shield, CheckCircle2 } from 'lucide-react';
+import { Users, Plus, Search, UserCheck, UserX, Edit, Shield, CheckCircle2, Trash2 } from 'lucide-react';
 
 export const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -43,8 +43,21 @@ export const UserManagementPage: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const loadUsers = () => {
+  // Delete Confirmation State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const loadUsers = async () => {
     setUsers(authService.getUsers());
+    try {
+      const liveUsers = await authService.fetchUsers();
+      if (liveUsers && liveUsers.length > 0) {
+        setUsers(liveUsers);
+      }
+    } catch {
+      // Fallback to local
+    }
   };
 
   useEffect(() => {
@@ -74,7 +87,7 @@ export const UserManagementPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveUser = (e: React.FormEvent) => {
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setModalError(null);
 
@@ -85,14 +98,14 @@ export const UserManagementPage: React.FC = () => {
 
     try {
       if (editingUserId) {
-        authService.updateUser(editingUserId, {
+        await authService.updateUserAsync(editingUserId, {
           displayName: displayName.trim(),
           email: email.trim(),
           role,
         });
         showToast('User details updated successfully.');
       } else {
-        authService.addUser({
+        await authService.addUserAsync({
           displayName: displayName.trim(),
           email: email.trim(),
           role,
@@ -101,21 +114,43 @@ export const UserManagementPage: React.FC = () => {
         showToast('New user added successfully.');
       }
       setIsModalOpen(false);
-      loadUsers();
+      await loadUsers();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error saving user.';
       setModalError(msg);
     }
   };
 
-  const handleToggleStatus = (id: string) => {
+  const handleToggleStatus = async (id: string) => {
     try {
-      const updated = authService.toggleUserStatus(id);
+      const updated = await authService.toggleUserStatusAsync(id);
       showToast(`User is now ${updated.status}.`);
-      loadUsers();
+      await loadUsers();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error changing status.';
       showToast(msg);
+    }
+  };
+
+  const handleOpenDelete = (user: User) => {
+    setUserToDelete(user);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    try {
+      await authService.deleteUserAsync(userToDelete.id);
+      showToast(`User ${userToDelete.displayName} deleted successfully.`);
+      setIsDeleteModalOpen(false);
+      setUserToDelete(null);
+      await loadUsers();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete user.';
+      showToast(msg);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -259,7 +294,7 @@ export const UserManagementPage: React.FC = () => {
                         size="sm"
                         onClick={() => handleToggleStatus(u.id)}
                         className={`h-8 px-2 text-xs ${
-                          u.status === UserStatus.ACTIVE ? 'text-error hover:bg-error-light' : ''
+                          u.status === UserStatus.ACTIVE ? 'text-warning hover:bg-warning-light' : ''
                         }`}
                       >
                         {u.status === UserStatus.ACTIVE ? (
@@ -271,6 +306,14 @@ export const UserManagementPage: React.FC = () => {
                             <UserCheck className="w-3.5 h-3.5 mr-1" /> Activate
                           </>
                         )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenDelete(u)}
+                        className="h-8 px-2 text-xs text-error hover:bg-error-light"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -346,6 +389,42 @@ export const UserManagementPage: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User Account</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm text-text-secondary space-y-2">
+            <p>
+              Are you sure you want to permanently delete user{' '}
+              <strong className="text-text-primary">{userToDelete?.displayName}</strong> ({userToDelete?.email})?
+            </p>
+            <p className="text-xs text-error font-medium">
+              This action is permanent and removes the user from the database immediately.
+            </p>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteModalOpen(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete User'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
