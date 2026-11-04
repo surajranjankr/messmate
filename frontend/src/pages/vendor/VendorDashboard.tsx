@@ -75,7 +75,13 @@ export const VendorDashboard: React.FC = () => {
           forecastService.fetchRecommendation(m.id),
           forecastService.fetchVendorDecision(m.id),
         ]);
-        if (c) setCountsMap((prev) => ({ ...prev, [m.id]: c }));
+        if (c) {
+          const localTotal = (counts[m.id]?.definitelyEating ?? 0) + (counts[m.id]?.probablyEating ?? 0) + (counts[m.id]?.notEating ?? 0);
+          const backendTotal = c.definitelyEating + c.probablyEating + c.notEating;
+          if (backendTotal > 0 || localTotal === 0) {
+            setCountsMap((prev) => ({ ...prev, [m.id]: c }));
+          }
+        }
         if (r) setRecsMap((prev) => ({ ...prev, [m.id]: r }));
         if (d !== undefined) setDecisionsMap((prev) => ({ ...prev, [m.id]: d }));
       } catch {

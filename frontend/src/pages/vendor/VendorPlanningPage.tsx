@@ -6,7 +6,7 @@
 // recommended portions, and the option to accept or adjust batch size.
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { mealInstanceService } from '@/services/mealInstanceService';
 import { responseService } from '@/services/responseService';
 import { forecastService } from '@/services/forecastService';
@@ -43,6 +43,9 @@ import {
 import { parseISO } from 'date-fns';
 
 export const VendorPlanningPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const mealIdParam = searchParams.get('mealId');
+
   const [selectedMeal, setSelectedMeal] = useState<MealInstance | null>(null);
   const [counts, setCounts] = useState<MealCounts | null>(null);
   const [recommendation, setRecommendation] = useState<ForecastRecommendation | null>(null);
@@ -92,7 +95,14 @@ export const VendorPlanningPage: React.FC = () => {
         forecastService.fetchVendorDecision(targetMeal.id),
       ]);
 
-      if (backendCount) setCounts(backendCount);
+      if (backendCount) {
+        const localTotal = (c?.definitelyEating ?? 0) + (c?.probablyEating ?? 0) + (c?.notEating ?? 0);
+        const backendTotal = backendCount.definitelyEating + backendCount.probablyEating + backendCount.notEating;
+        // Safeguard: never let an unpopulated 0 count from backend overwrite actual user responses
+        if (backendTotal > 0 || localTotal === 0) {
+          setCounts(backendCount);
+        }
+      }
       if (backendRec) {
         setRecommendation(backendRec);
         // Do not overwrite user's in-progress custom quantity
@@ -117,7 +127,13 @@ export const VendorPlanningPage: React.FC = () => {
 
   const loadIncomingMeal = async (silent = false) => {
     let targetMeal: MealInstance | null = null;
-    targetMeal = await mealInstanceService.fetchActionableMealInstance();
+    if (mealIdParam) {
+      targetMeal = mealInstanceService.getMealInstance(mealIdParam);
+    }
+
+    if (!targetMeal) {
+      targetMeal = await mealInstanceService.fetchActionableMealInstance();
+    }
 
     if (!targetMeal) {
       targetMeal = mealInstanceService.getNextActionableMeal();
@@ -151,7 +167,7 @@ export const VendorPlanningPage: React.FC = () => {
       window.removeEventListener('response-updated', handleResponseUpdate);
       window.removeEventListener('storage', handleResponseUpdate);
     };
-  }, []);
+  }, [mealIdParam]);
 
   const handleAcceptRecommendation = () => {
     if (!recommendation || recommendation.recommendedPortions == null) return;

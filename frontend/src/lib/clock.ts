@@ -4,7 +4,36 @@
 // Provides a singleton clock that defaults to real time but can
 // be overridden for testing deadline-related features.
 
-let mockTime: Date | null = null;
+const SIMULATION_CLOCK_STORAGE_KEY = 'messmate_simulation_clock';
+
+let mockTime: Date | null = (() => {
+  try {
+    const saved = localStorage.getItem(SIMULATION_CLOCK_STORAGE_KEY);
+    if (saved) {
+      const parsed = new Date(saved);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+  } catch {
+    // Local storage unavailable
+  }
+  return null;
+})();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === SIMULATION_CLOCK_STORAGE_KEY) {
+      if (e.newValue) {
+        const parsed = new Date(e.newValue);
+        if (!isNaN(parsed.getTime())) {
+          mockTime = parsed;
+        }
+      } else {
+        mockTime = null;
+      }
+      window.dispatchEvent(new Event('clock-tick'));
+    }
+  });
+}
 
 /**
  * Get the current time. Returns the mock time if set,
@@ -23,6 +52,11 @@ export function getCurrentTime(): Date {
  */
 export function setMockTime(date: Date): void {
   mockTime = new Date(date.getTime());
+  try {
+    localStorage.setItem(SIMULATION_CLOCK_STORAGE_KEY, mockTime.toISOString());
+  } catch {
+    // Ignore
+  }
 }
 
 /**
@@ -30,6 +64,11 @@ export function setMockTime(date: Date): void {
  */
 export function resetClock(): void {
   mockTime = null;
+  try {
+    localStorage.removeItem(SIMULATION_CLOCK_STORAGE_KEY);
+  } catch {
+    // Ignore
+  }
 }
 
 /**

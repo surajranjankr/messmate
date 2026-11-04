@@ -32,6 +32,18 @@ class MongoUserRepository(IUserRepository):
             status=doc.get("status", "ACTIVE"),
         )
 
+    async def get_by_email(self, email: str) -> Optional[UserOut]:
+        u = await self.get_by_email_with_password(email)
+        if not u:
+            return None
+        return UserOut(
+            id=u.id,
+            display_name=u.display_name,
+            email=u.email,
+            role=u.role,
+            status=u.status,
+        )
+
     async def get_by_email_with_password(self, email: str) -> Optional[UserInDB]:
         clean_email = email.strip().lower()
         doc = await self.collection.find_one(

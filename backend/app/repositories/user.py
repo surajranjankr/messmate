@@ -17,6 +17,11 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_by_email(self, email: str) -> Optional[UserOut]:
+        """Fetch active user by email without exposing password hash."""
+        pass
+
+    @abstractmethod
     async def get_by_email_with_password(self, email: str) -> Optional[UserInDB]:
         """Fetch user by email including hashed_password for auth verification."""
         pass

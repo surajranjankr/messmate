@@ -10,9 +10,11 @@ import { storageGet, StorageKey } from '../lib/storage';
 import { User } from '../types';
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  'http://localhost:8000/api/v1';
+  import.meta.env.MODE === 'test'
+    ? 'http://localhost:8000/api/v1'
+    : import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_API_URL ||
+      'http://localhost:8000/api/v1';
 
 export const TOKEN_STORAGE_KEY = 'messmate_jwt_token';
 
@@ -90,15 +92,20 @@ export const apiClient = {
       headers.set('X-User-Email', currentUser.email);
     }
 
-    if (isMockTimeActive() && !headers.has('X-Simulation-Time')) {
+    if (!headers.has('X-Simulation-Time')) {
       headers.set('X-Simulation-Time', getCurrentTime().toISOString());
     }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
     try {
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: options.signal || controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.status === 401) {
         // Clear token on authentication expiry
@@ -129,6 +136,7 @@ export const apiClient = {
 
       return (await response.json()) as T;
     } catch (err: unknown) {
+      clearTimeout(timeoutId);
       if (err instanceof ApiError) {
         throw err;
       }

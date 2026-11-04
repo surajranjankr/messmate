@@ -30,6 +30,19 @@ class SqliteUserRepository(IUserRepository):
             status=u.status,
         )
 
+    async def get_by_email(self, email: str) -> Optional[UserOut]:
+        clean_email = email.strip().lower()
+        u = self.session.query(User).filter(User.email.ilike(clean_email)).first()
+        if not u:
+            return None
+        return UserOut(
+            id=u.id,
+            display_name=u.display_name,
+            email=u.email,
+            role=u.role,
+            status=u.status,
+        )
+
     async def get_by_email_with_password(self, email: str) -> Optional[UserInDB]:
         clean_email = email.strip().lower()
         u = self.session.query(User).filter(User.email.ilike(clean_email)).first()

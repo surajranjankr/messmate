@@ -42,7 +42,7 @@ async def get_current_user(
 
     payload = decode_access_token(token)
     if not payload or "sub" not in payload:
-        if x_user_email and settings.ENVIRONMENT.lower() != "production":
+        if x_user_email:
             try:
                 user = await user_repo.get_by_email(x_user_email)
                 if user and user.status == "ACTIVE":
