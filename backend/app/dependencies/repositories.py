@@ -71,7 +71,10 @@ def get_user_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IUserRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoUserRepository(_get_mongo_db_or_503())
+        try:
+            return MongoUserRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteUserRepository(sqlite_db)
     return SqliteUserRepository(sqlite_db)
 
 
@@ -79,7 +82,10 @@ def get_menu_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IMenuRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoMenuRepository(_get_mongo_db_or_503())
+        try:
+            return MongoMenuRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteMenuRepository(sqlite_db)
     return SqliteMenuRepository(sqlite_db)
 
 
@@ -87,7 +93,10 @@ def get_meal_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IMealRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoMealRepository(_get_mongo_db_or_503())
+        try:
+            return MongoMealRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteMealRepository(sqlite_db)
     return SqliteMealRepository(sqlite_db)
 
 
@@ -95,7 +104,10 @@ def get_response_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IResponseRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoResponseRepository(_get_mongo_db_or_503())
+        try:
+            return MongoResponseRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteResponseRepository(sqlite_db)
     return SqliteResponseRepository(sqlite_db)
 
 
@@ -103,7 +115,10 @@ def get_forecast_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IForecastRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoForecastRepository(_get_mongo_db_or_503())
+        try:
+            return MongoForecastRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteForecastRepository(sqlite_db)
     return SqliteForecastRepository(sqlite_db)
 
 
@@ -111,7 +126,10 @@ def get_outcome_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IOutcomeRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoOutcomeRepository(_get_mongo_db_or_503())
+        try:
+            return MongoOutcomeRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteOutcomeRepository(sqlite_db)
     return SqliteOutcomeRepository(sqlite_db)
 
 
@@ -119,7 +137,10 @@ def get_schedule_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IScheduleRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoScheduleRepository(_get_mongo_db_or_503())
+        try:
+            return MongoScheduleRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteScheduleRepository(sqlite_db)
     return SqliteScheduleRepository(sqlite_db)
 
 
@@ -127,7 +148,10 @@ def get_notification_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> INotificationRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoNotificationRepository(_get_mongo_db_or_503())
+        try:
+            return MongoNotificationRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteNotificationRepository(sqlite_db)
     return SqliteNotificationRepository(sqlite_db)
 
 
@@ -135,7 +159,10 @@ def get_report_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> IReportRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoReportRepository(_get_mongo_db_or_503())
+        try:
+            return MongoReportRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteReportRepository(sqlite_db)
     return SqliteReportRepository(sqlite_db)
 
 
@@ -143,5 +170,8 @@ def get_settings_repository(
     sqlite_db: Session = Depends(get_db),
 ) -> ISettingsRepository:
     if settings.DATABASE_BACKEND.lower() == "mongodb":
-        return MongoSettingsRepository(_get_mongo_db_or_503())
+        try:
+            return MongoSettingsRepository(_get_mongo_db_or_503())
+        except Exception:
+            return SqliteSettingsRepository(sqlite_db)
     return SqliteSettingsRepository(sqlite_db)

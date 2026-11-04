@@ -18,13 +18,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 # Log clearly without breaking app startup if in development
                 print(f"[Startup Warning] Could not initialize MongoDB: {e}")
-    else:
-        # Default SQLite initialization
-        db = SessionLocal()
-        try:
-            init_db(db)
-        finally:
-            db.close()
+
+    # Always ensure SQLite tables and fallback users are initialized
+    db = SessionLocal()
+    try:
+        init_db(db)
+    except Exception as e:
+        print(f"[Startup Warning] SQLite fallback initialization: {e}")
+    finally:
+        db.close()
 
     yield
 

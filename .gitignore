@@ -5,10 +5,13 @@
 .env.local
 .env.*.local
 atlas-credentials.env
+*credentials*
+seed_reports_data.py
+backend/seed_reports_data.py
 !.env.example
 !.env.*.example
-!backend/.env.example
-!frontend/.env.example
+!.backend/.env.example
+!.frontend/.env.example
 
 # Python environments and generated files
 .venv/

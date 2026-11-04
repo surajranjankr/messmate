@@ -164,55 +164,70 @@ export const demoMenuVersions: MenuVersion[] = [
 
 // --- Demo Meal Instances ---
 
+const HISTORICAL_MEALS = [
+  { date: '2026-11-01', type: MealType.BREAKFAST, rec: 4, planned: 4, prep: 4, att: 3, waste: 4.5, notes: 'Sunday idli-vada breakfast; smooth service' },
+  { date: '2026-11-01', type: MealType.LUNCH, rec: 4, planned: 5, prep: 5, att: 4, waste: 3.8, notes: 'Weekend special lunch; slight override for visitors' },
+  { date: '2026-11-01', type: MealType.SNACKS, rec: 3, planned: 3, prep: 3, att: 3, waste: 2.0, notes: 'Evening tea & samosa; optimal turn-out' },
+  { date: '2026-11-01', type: MealType.DINNER, rec: 4, planned: 4, prep: 4, att: 4, waste: 1.5, notes: 'Sunday dinner; high turn-out' },
+
+  { date: '2026-11-02', type: MealType.BREAKFAST, rec: 3, planned: 3, prep: 3, att: 3, waste: 2.5, notes: 'Monday morning breakfast; timely preparation' },
+  { date: '2026-11-02', type: MealType.LUNCH, rec: 4, planned: 4, prep: 4, att: 4, waste: 3.0, notes: 'Rice, dal & sabzi; well received' },
+  { date: '2026-11-02', type: MealType.SNACKS, rec: 3, planned: 3, prep: 3, att: 2, waste: 6.0, notes: 'Late lab sessions slightly reduced attendance' },
+  { date: '2026-11-02', type: MealType.DINNER, rec: 4, planned: 4, prep: 4, att: 3, waste: 4.0, notes: 'Chapati & paneer; 1 portion remaining' },
+
+  { date: '2026-11-03', type: MealType.BREAKFAST, rec: 4, planned: 4, prep: 4, att: 4, waste: 1.8, notes: 'Poha & sprouts; clean trays' },
+  { date: '2026-11-03', type: MealType.LUNCH, rec: 4, planned: 4, prep: 4, att: 3, waste: 4.2, notes: 'Mid-day meal; within target buffer' },
+  { date: '2026-11-03', type: MealType.SNACKS, rec: 3, planned: 3, prep: 3, att: 3, waste: 2.1, notes: 'Biscuits & tea; right on target' },
+  { date: '2026-11-03', type: MealType.DINNER, rec: 4, planned: 4, prep: 4, att: 4, waste: 2.0, notes: 'Tuesday dinner; excellent response rate' },
+];
+
+const DEMO_STUDENT_IDS = [
+  'user-student-arjun',
+  'user-student-priya',
+  'user-student-rahul',
+  'user-0199f175',
+];
+
+const SEED_CHOICE_PATTERNS = [
+  [ResponseChoice.DEFINITELY_EATING, ResponseChoice.DEFINITELY_EATING, ResponseChoice.NOT_EATING, ResponseChoice.PROBABLY_EATING],
+  [ResponseChoice.DEFINITELY_EATING, ResponseChoice.PROBABLY_EATING, ResponseChoice.DEFINITELY_EATING, ResponseChoice.DEFINITELY_EATING],
+  [ResponseChoice.PROBABLY_EATING, ResponseChoice.DEFINITELY_EATING, ResponseChoice.NOT_EATING, ResponseChoice.DEFINITELY_EATING],
+  [ResponseChoice.DEFINITELY_EATING, ResponseChoice.NOT_EATING, ResponseChoice.DEFINITELY_EATING, ResponseChoice.PROBABLY_EATING],
+];
+
 /**
- * Generate a few demo meal instances around "today".
- * In a real app these would be generated from schedules.
+ * Generate demo meal instances including historical past meals and upcoming week.
  */
 function generateDemoMealInstances(): MealInstance[] {
-  const today = new Date();
   const instances: MealInstance[] = [];
 
-  // Generate instances for yesterday, today, and tomorrow
-  for (let dayOffset = -1; dayOffset <= 1; dayOffset++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + dayOffset);
-    const dateStr = date.toISOString().split('T')[0]!;
+  // 1. Add historical meals (Nov 1 to Nov 3)
+  for (const m of HISTORICAL_MEALS) {
+    instances.push({
+      id: `mi-${m.date}-${m.type.toLowerCase()}`,
+      mealDate: m.date,
+      mealType: m.type,
+      menuVersionId: 'menu-v1',
+      responseDeadline: `${m.date}T10:00:00+05:30`,
+      responseOpenTime: `${m.date}T06:00:00+05:30`,
+      status: MealInstanceStatus.COMPLETED,
+    });
+  }
 
-    const meals = [
-      { type: MealType.BREAKFAST, deadlineHour: 22, deadlineOffset: -1 },
-      { type: MealType.LUNCH, deadlineHour: 9, deadlineOffset: 0 },
-      { type: MealType.SNACKS, deadlineHour: 14, deadlineOffset: 0 },
-      { type: MealType.DINNER, deadlineHour: 17, deadlineOffset: 0 },
-    ];
+  // 2. Add current & upcoming meals (Nov 4 to Nov 7)
+  const futureDates = ['2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07'];
+  const mealTypes = [MealType.BREAKFAST, MealType.LUNCH, MealType.SNACKS, MealType.DINNER];
 
-    for (const meal of meals) {
-      const deadlineDate = new Date(date);
-      if (meal.deadlineOffset !== 0) {
-        deadlineDate.setDate(deadlineDate.getDate() + meal.deadlineOffset);
-      }
-      deadlineDate.setHours(meal.deadlineHour, 0, 0, 0);
-
-      let status: MealInstanceStatus;
-      if (dayOffset < 0) {
-        status = MealInstanceStatus.COMPLETED;
-      } else if (dayOffset === 0) {
-        const now = new Date();
-        if (now < deadlineDate) {
-          status = MealInstanceStatus.RESPONSE_OPEN;
-        } else {
-          status = MealInstanceStatus.RESPONSE_CLOSED;
-        }
-      } else {
-        status = MealInstanceStatus.UPCOMING;
-      }
-
+  for (const dateStr of futureDates) {
+    for (const type of mealTypes) {
       instances.push({
-        id: `mi-${dateStr}-${meal.type.toLowerCase()}`,
+        id: `mi-${dateStr}-${type.toLowerCase()}`,
         mealDate: dateStr,
-        mealType: meal.type,
+        mealType: type,
         menuVersionId: 'menu-v1',
-        responseDeadline: deadlineDate.toISOString(),
-        status,
+        responseDeadline: `${dateStr}T17:00:00+05:30`,
+        responseOpenTime: `${dateStr}T06:00:00+05:30`,
+        status: dateStr === '2026-11-04' ? MealInstanceStatus.RESPONSE_OPEN : MealInstanceStatus.UPCOMING,
       });
     }
   }
@@ -224,34 +239,25 @@ export const demoMealInstances: MealInstance[] = generateDemoMealInstances();
 
 // --- Demo Meal Responses ---
 
-/** Generate some demo responses for yesterday's meals */
 function generateDemoResponses(): MealResponse[] {
   const responses: MealResponse[] = [];
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().split('T')[0]!;
 
-  const students = ['user-student-arjun', 'user-student-priya', 'user-student-rahul'];
-  const choices = [
-    ResponseChoice.DEFINITELY_EATING,
-    ResponseChoice.PROBABLY_EATING,
-    ResponseChoice.NOT_EATING,
-  ];
+  HISTORICAL_MEALS.forEach((item, idx) => {
+    const mid = `mi-${item.date}-${item.type.toLowerCase()}`;
+    const pattern = SEED_CHOICE_PATTERNS[idx % SEED_CHOICE_PATTERNS.length]!;
 
-  const meals = [MealType.BREAKFAST, MealType.LUNCH, MealType.DINNER];
-
-  for (const meal of meals) {
-    for (let i = 0; i < students.length; i++) {
+    DEMO_STUDENT_IDS.forEach((studentId, sIdx) => {
+      const choice = pattern[sIdx % pattern.length]!;
       responses.push({
-        id: `resp-${dateStr}-${meal.toLowerCase()}-${students[i]}`,
-        studentId: students[i]!,
-        mealInstanceId: `mi-${dateStr}-${meal.toLowerCase()}`,
-        choice: choices[i % choices.length]!,
-        createdAt: yesterday.toISOString(),
-        updatedAt: yesterday.toISOString(),
+        id: `resp-${item.date}-${item.type.toLowerCase()}-${studentId.slice(-6)}`,
+        studentId,
+        mealInstanceId: mid,
+        choice,
+        createdAt: `${item.date}T07:15:00Z`,
+        updatedAt: `${item.date}T07:15:00Z`,
       });
-    }
-  }
+    });
+  });
 
   return responses;
 }
@@ -260,41 +266,61 @@ export const demoMealResponses: MealResponse[] = generateDemoResponses();
 
 // --- Demo Vendor Decisions ---
 
-export const demoVendorDecisions: VendorDecision[] = [];
+function generateDemoDecisions(): VendorDecision[] {
+  return HISTORICAL_MEALS.map((m) => {
+    const isOverride = m.planned !== m.rec;
+    return {
+      mealInstanceId: `mi-${m.date}-${m.type.toLowerCase()}`,
+      originalRecommendation: m.rec,
+      finalPlannedQuantity: m.planned,
+      overrideReason: isOverride ? 'Weekend visitor buffer' : undefined,
+      status: isOverride ? VendorDecisionStatus.OVERRIDDEN : VendorDecisionStatus.ACCEPTED,
+      updatedAt: `${m.date}T08:00:00Z`,
+    };
+  });
+}
+
+export const demoVendorDecisions: VendorDecision[] = generateDemoDecisions();
 
 // --- Demo Meal Outcomes ---
 
-export const demoMealOutcomes: MealOutcome[] = [];
+function generateDemoOutcomes(): MealOutcome[] {
+  return HISTORICAL_MEALS.map((m) => ({
+    mealInstanceId: `mi-${m.date}-${m.type.toLowerCase()}`,
+    actualPreparedQuantity: m.prep,
+    preparedUnit: 'portions',
+    actualAttendance: m.att,
+    leftoverQuantity: Math.max(0, m.prep - m.att),
+    leftoverUnit: 'portions',
+    wastePercentage: m.waste,
+    notes: m.notes,
+    recordedAt: `${m.date}T14:30:00Z`,
+  }));
+}
+
+export const demoMealOutcomes: MealOutcome[] = generateDemoOutcomes();
 
 // --- Demo Forecast Recommendations ---
 
 function generateDemoForecasts(): ForecastRecommendation[] {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const dateStr = yesterday.toISOString().split('T')[0]!;
-
-  return [
-    {
-      mealInstanceId: `mi-${dateStr}-lunch`,
-      baselineAttendance: 3,
-      expectedAttendance: 2.1,
-      safetyMarginFraction: 0.08,
-      recommendedPortions: 3,
-      forecastMethod: ForecastMethod.BASELINE_ONLY,
-      dataQualityStatus: DataQualityStatus.SUFFICIENT,
-      explanation:
-        'Dynamic demand model: 3 active students with 70% nonresponse rate. Expected demand F=2.1, Q=ceil(2.1*1.08)=3.',
-      definitelyEating: 0,
-      probablyEating: 0,
-      notEating: 0,
-      noResponse: 3,
-      nonresponseAttendanceRate: 0.70,
-    },
-  ];
+  return HISTORICAL_MEALS.map((m) => ({
+    mealInstanceId: `mi-${m.date}-${m.type.toLowerCase()}`,
+    baselineAttendance: 4,
+    expectedAttendance: Number((m.att * 0.9).toFixed(1)),
+    safetyMarginFraction: 0.08,
+    recommendedPortions: m.rec,
+    forecastMethod: ForecastMethod.BASELINE_PLUS_SURVEY,
+    dataQualityStatus: DataQualityStatus.SUFFICIENT,
+    explanation: `Dynamic demand model for ${m.type} with 8% safety buffer applied.`,
+    definitelyEating: 2,
+    probablyEating: 1,
+    notEating: 1,
+    noResponse: 0,
+    nonresponseAttendanceRate: 0.70,
+  }));
 }
 
-export const demoForecastRecommendations: ForecastRecommendation[] =
-  generateDemoForecasts();
+export const demoForecastRecommendations: ForecastRecommendation[] = generateDemoForecasts();
 
 // --- Exports matching storage initialization ---
 

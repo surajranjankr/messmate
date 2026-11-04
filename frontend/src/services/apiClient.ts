@@ -6,6 +6,8 @@
 // and gracefully formats server errors.
 
 import { getCurrentTime, isMockTimeActive } from '../lib/clock';
+import { storageGet, StorageKey } from '../lib/storage';
+import { User } from '../types';
 
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -81,6 +83,11 @@ export const apiClient = {
     const token = this.getToken();
     if (token && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    const currentUser = storageGet<User | null>(StorageKey.CURRENT_USER, null);
+    if (currentUser?.email && !headers.has('X-User-Email')) {
+      headers.set('X-User-Email', currentUser.email);
     }
 
     if (isMockTimeActive() && !headers.has('X-Simulation-Time')) {

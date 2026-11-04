@@ -152,7 +152,37 @@ export function initializeStorageIfEmpty(): void {
   }
 
   if (storageHas(StorageKey.USERS)) {
-    // Already initialized — skip.
+    // Populate historical reporting dummy data if missing in existing session
+    const existingOutcomes = storageGet<any[]>(StorageKey.MEAL_OUTCOMES, []);
+    if (existingOutcomes.length === 0) {
+      storageSet(StorageKey.MEAL_OUTCOMES, demoMealOutcomes);
+    }
+
+    const existingDecisions = storageGet<any[]>(StorageKey.VENDOR_DECISIONS, []);
+    if (existingDecisions.length === 0) {
+      storageSet(StorageKey.VENDOR_DECISIONS, demoVendorDecisions);
+    }
+
+    const existingForecasts = storageGet<any[]>(StorageKey.FORECAST_RECOMMENDATIONS, []);
+    if (existingForecasts.length < 5) {
+      storageSet(StorageKey.FORECAST_RECOMMENDATIONS, demoForecastRecommendations);
+    }
+
+    const existingInstances = storageGet<any[]>(StorageKey.MEAL_INSTANCES, []);
+    if (existingInstances.length < 10) {
+      // Merge historical instances
+      const existingIds = new Set(existingInstances.map((i) => i.id));
+      const combined = [...existingInstances, ...demoMealInstances.filter((i) => !existingIds.has(i.id))];
+      storageSet(StorageKey.MEAL_INSTANCES, combined);
+    }
+
+    const existingResponses = storageGet<any[]>(StorageKey.MEAL_RESPONSES, []);
+    if (existingResponses.length < 5) {
+      const existingIds = new Set(existingResponses.map((r) => r.id));
+      const combined = [...existingResponses, ...demoMealResponses.filter((r) => !existingIds.has(r.id))];
+      storageSet(StorageKey.MEAL_RESPONSES, combined);
+    }
+
     return;
   }
 

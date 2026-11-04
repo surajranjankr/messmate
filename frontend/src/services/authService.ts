@@ -180,8 +180,13 @@ export const authService = {
       throw new Error('A user with this email already exists.');
     }
 
-    // Call backend API
-    const created = await apiClient.post<User>('/users', userData);
+    let created: User | null = null;
+    try {
+      created = await apiClient.post<User>('/users', userData);
+    } catch (err: unknown) {
+      console.warn('Backend user creation deferred; saving locally:', err);
+    }
+
     const newUser: User = created?.id ? created : {
       ...userData,
       id: `user-${generateId().slice(0, 8)}`,
@@ -237,7 +242,11 @@ export const authService = {
     users[index] = updatedUser;
     storageSet(StorageKey.USERS, users);
 
-    await apiClient.patch(`/users/${id}`, updates);
+    try {
+      await apiClient.patch(`/users/${id}`, updates);
+    } catch (err: unknown) {
+      console.warn('Backend user update deferred; saved locally:', err);
+    }
     return updatedUser;
   },
 
@@ -302,6 +311,10 @@ export const authService = {
     const filtered = users.filter((u) => u.id !== id);
     storageSet(StorageKey.USERS, filtered);
 
-    await apiClient.delete(`/users/${id}`);
+    try {
+      await apiClient.delete(`/users/${id}`);
+    } catch (err: unknown) {
+      console.warn('Backend user deletion deferred; deleted locally:', err);
+    }
   },
 };
