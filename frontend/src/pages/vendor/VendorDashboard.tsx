@@ -86,9 +86,18 @@ export const VendorDashboard: React.FC = () => {
 
   useEffect(() => {
     loadVendorData();
+
+    // Auto-refresh live student response counts across all meals every 4 seconds
+    const pollInterval = setInterval(() => {
+      loadVendorData();
+    }, 4000);
+
     const handleClockTick = () => loadVendorData();
     window.addEventListener('clock-tick', handleClockTick);
-    return () => window.removeEventListener('clock-tick', handleClockTick);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('clock-tick', handleClockTick);
+    };
   }, []);
 
   const getMenuSummary = (instance: MealInstance) => {
@@ -207,12 +216,18 @@ export const VendorDashboard: React.FC = () => {
                     {/* Response Counts Section */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                          {isPastDeadline ? 'Final Student Response Counts' : 'Provisional In-Progress Counts'}
+                        <span className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                          <span>{isPastDeadline ? 'Final Student Response Counts' : 'Live Student Response Counts'}</span>
+                          {!isPastDeadline && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                            </span>
+                          )}
                         </span>
                         {!isPastDeadline && (
-                          <span className="text-[11px] text-warning font-medium">
-                            (Responses still coming in)
+                          <span className="text-[11px] text-success font-semibold">
+                            (Updating live)
                           </span>
                         )}
                       </div>

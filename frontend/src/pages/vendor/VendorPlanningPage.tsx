@@ -6,7 +6,7 @@
 // recommended portions, and the option to accept or adjust batch size.
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { mealInstanceService } from '@/services/mealInstanceService';
 import { responseService } from '@/services/responseService';
 import { forecastService } from '@/services/forecastService';
@@ -39,21 +39,15 @@ import {
   Utensils,
   Clock,
   Sparkles,
-  RefreshCw,
 } from 'lucide-react';
 import { parseISO } from 'date-fns';
 
 export const VendorPlanningPage: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const mealIdParam = searchParams.get('mealId');
-
-  const [todaysMeals, setTodaysMeals] = useState<MealInstance[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<MealInstance | null>(null);
   const [counts, setCounts] = useState<MealCounts | null>(null);
   const [recommendation, setRecommendation] = useState<ForecastRecommendation | null>(null);
   const [existingDecision, setExistingDecision] = useState<VendorDecision | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Form state
   const [plannedQty, setPlannedQty] = useState<string>('');
@@ -64,7 +58,6 @@ export const VendorPlanningPage: React.FC = () => {
 
   const loadMealData = async (targetMeal: MealInstance, silent = false) => {
     if (!silent) setIsLoading(true);
-    else setIsRefreshing(true);
 
     setSelectedMeal(targetMeal);
 
@@ -113,56 +106,31 @@ export const VendorPlanningPage: React.FC = () => {
       // Retain local counts
     } finally {
       setIsLoading(false);
-      setIsRefreshing(false);
     }
   };
 
-  const loadIncomingMeal = async () => {
-    const todayList = mealInstanceService.getTodaysMeals();
-    setTodaysMeals(todayList);
-
+  const loadIncomingMeal = async (silent = false) => {
     let targetMeal: MealInstance | null = null;
-    if (mealIdParam) {
-      targetMeal = mealInstanceService.getMealInstance(mealIdParam);
-    }
-
-    if (!targetMeal) {
-      targetMeal = await mealInstanceService.fetchActionableMealInstance();
-    }
+    targetMeal = await mealInstanceService.fetchActionableMealInstance();
 
     if (!targetMeal) {
       targetMeal = mealInstanceService.getNextActionableMeal();
     }
 
     if (targetMeal) {
-      await loadMealData(targetMeal);
+      await loadMealData(targetMeal, silent);
     } else {
       setIsLoading(false);
-    }
-  };
-
-  const handleSelectMeal = (meal: MealInstance) => {
-    setSearchParams({ mealId: meal.id });
-    loadMealData(meal);
-  };
-
-  const handleManualRefresh = () => {
-    if (selectedMeal) {
-      loadMealData(selectedMeal, true);
-    } else {
-      loadIncomingMeal();
     }
   };
 
   useEffect(() => {
     loadIncomingMeal();
 
-    // Auto-refresh counts every 5 seconds so real-time student submissions show up immediately
+    // Auto-refresh live counts for incoming meal every 4 seconds in background
     const pollInterval = setInterval(() => {
-      if (selectedMeal) {
-        loadMealData(selectedMeal, true);
-      }
-    }, 5000);
+      loadIncomingMeal(true);
+    }, 4000);
 
     const handleClockTick = () => loadIncomingMeal();
     window.addEventListener('clock-tick', handleClockTick);
@@ -170,7 +138,7 @@ export const VendorPlanningPage: React.FC = () => {
       clearInterval(pollInterval);
       window.removeEventListener('clock-tick', handleClockTick);
     };
-  }, [mealIdParam]);
+  }, []);
 
   const handleAcceptRecommendation = () => {
     if (!recommendation || recommendation.recommendedPortions == null) return;
@@ -295,52 +263,10 @@ export const VendorPlanningPage: React.FC = () => {
             Kitchen Preparation Planning
           </h2>
           <p className="text-sm text-text-secondary mt-0.5">
-            Review student intentions, check recommended portions, and confirm kitchen preparation.
+            Review student intentions, check recommended portions, and confirm kitchen preparation for the incoming meal.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className="text-xs font-semibold gap-1.5 shadow-xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-primary' : 'text-text-secondary'}`} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Counts'}</span>
-          </Button>
-        </div>
       </div>
-
-      {/* Meal Selection Tabs */}
-      {todaysMeals.length > 0 && (
-        <div className="flex items-center gap-2 p-1.5 bg-card border border-border rounded-xl shadow-xs overflow-x-auto">
-          <span className="text-xs font-bold text-text-secondary px-2 uppercase tracking-wider shrink-0">
-            Select Meal:
-          </span>
-          <div className="flex items-center gap-1.5">
-            {todaysMeals.map((m) => {
-              const isSelected = selectedMeal?.id === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => handleSelectMeal(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                    isSelected
-                      ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
-                      : 'bg-lavender/40 text-text-secondary hover:text-text-primary hover:bg-lavender'
-                  }`}
-                >
-                  {formatMealType(m.mealType)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Notifications */}
       {successMessage && (
