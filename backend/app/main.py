@@ -16,8 +16,12 @@ async def lifespan(app: FastAPI):
                 db = get_mongo_db()
                 await init_mongo_indexes(db)
             except Exception as e:
-                # Log clearly without breaking app startup if in development
+                # Fall back gracefully to SQLite to ensure high availability
                 print(f"[Startup Warning] Could not initialize MongoDB: {e}")
+                print("[Startup Notice] Gracefully switching to SQLite storage backend to preserve API uptime.")
+                settings.DATABASE_BACKEND = "sqlite"
+        else:
+            settings.DATABASE_BACKEND = "sqlite"
 
     # Always ensure SQLite tables and fallback users are initialized
     db = SessionLocal()
