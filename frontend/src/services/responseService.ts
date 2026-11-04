@@ -108,6 +108,8 @@ export const responseService = {
     }
 
     storageSet(StorageKey.MEAL_RESPONSES, responses);
+    window.dispatchEvent(new CustomEvent('response-updated', { detail: result }));
+    window.dispatchEvent(new Event('clock-tick'));
 
     // Sync in background to FastAPI backend
     apiClient
@@ -153,14 +155,23 @@ export const responseService = {
         );
         responses.push(serverResp);
         storageSet(StorageKey.MEAL_RESPONSES, responses);
+        window.dispatchEvent(new CustomEvent('response-updated', { detail: serverResp }));
+        window.dispatchEvent(new Event('clock-tick'));
         return serverResp;
       }
-    } catch (err) {
-      // If server rejected with 400 (e.g. deadline), rethrow
-      throw err;
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      // If server rejected with a genuine business rule (400, 403, 422 window closed), rethrow
+      if (status === 400 || status === 403 || status === 422) {
+        throw err;
+      }
+      console.warn('Backend response synchronization deferred; saving locally:', err);
     }
 
-    return this.submitResponse(studentId, mealInstanceId, choice);
+    const localSaved = this.submitResponse(studentId, mealInstanceId, choice);
+    window.dispatchEvent(new CustomEvent('response-updated', { detail: localSaved }));
+    window.dispatchEvent(new Event('clock-tick'));
+    return localSaved;
   },
 
   /**

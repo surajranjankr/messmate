@@ -71,14 +71,17 @@ export const VendorPlanningPage: React.FC = () => {
     const decision = forecastService.getVendorDecision(targetMeal.id);
     setExistingDecision(decision);
 
-    if (decision) {
-      setPlannedQty(String(decision.finalPlannedQuantity));
-      setOverrideReason(decision.overrideReason ?? '');
-      setIsOverrideMode(decision.status === VendorDecisionStatus.OVERRIDDEN);
-    } else if (rec.recommendedPortions != null) {
-      setPlannedQty(String(rec.recommendedPortions));
-      setOverrideReason('');
-      setIsOverrideMode(false);
+    // ONLY initialize form values on initial load or non-silent mode, NEVER overwrite while user is editing or during silent background polls!
+    if (!silent) {
+      if (decision) {
+        setPlannedQty(String(decision.finalPlannedQuantity));
+        setOverrideReason(decision.overrideReason ?? '');
+        setIsOverrideMode(decision.status === VendorDecisionStatus.OVERRIDDEN);
+      } else if (rec.recommendedPortions != null) {
+        setPlannedQty(String(rec.recommendedPortions));
+        setOverrideReason('');
+        setIsOverrideMode(false);
+      }
     }
 
     // Backend sync
@@ -92,15 +95,18 @@ export const VendorPlanningPage: React.FC = () => {
       if (backendCount) setCounts(backendCount);
       if (backendRec) {
         setRecommendation(backendRec);
-        if (!backendDecision && backendRec.recommendedPortions != null) {
-          setPlannedQty(String(backendRec.recommendedPortions));
+        // Do not overwrite user's in-progress custom quantity
+        if (!silent && !decision && !isOverrideMode && backendRec.recommendedPortions != null) {
+          setPlannedQty((prev) => (prev ? prev : String(backendRec.recommendedPortions)));
         }
       }
       if (backendDecision) {
         setExistingDecision(backendDecision);
-        setPlannedQty(String(backendDecision.finalPlannedQuantity));
-        setOverrideReason(backendDecision.overrideReason ?? '');
-        setIsOverrideMode(backendDecision.status === VendorDecisionStatus.OVERRIDDEN);
+        if (!silent) {
+          setPlannedQty(String(backendDecision.finalPlannedQuantity));
+          setOverrideReason(backendDecision.overrideReason ?? '');
+          setIsOverrideMode(backendDecision.status === VendorDecisionStatus.OVERRIDDEN);
+        }
       }
     } catch {
       // Retain local counts
@@ -133,10 +139,17 @@ export const VendorPlanningPage: React.FC = () => {
     }, 4000);
 
     const handleClockTick = () => loadIncomingMeal();
+    const handleResponseUpdate = () => loadIncomingMeal(true);
+
     window.addEventListener('clock-tick', handleClockTick);
+    window.addEventListener('response-updated', handleResponseUpdate);
+    window.addEventListener('storage', handleResponseUpdate);
+
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('clock-tick', handleClockTick);
+      window.removeEventListener('response-updated', handleResponseUpdate);
+      window.removeEventListener('storage', handleResponseUpdate);
     };
   }, []);
 
@@ -415,15 +428,62 @@ export const VendorPlanningPage: React.FC = () => {
 
             <CardContent className="pt-4">
               <form onSubmit={handleConfirmPlan} className="space-y-4">
-                {/* Big Number Display */}
-                <div className="p-4 rounded-xl bg-lavender/50 border border-primary/20 text-center space-y-1">
-                  <span className="text-xs font-bold text-text-secondary uppercase tracking-wider block">
-                    Target Batch Quantity
-                  </span>
-                  <div className="text-4xl font-black text-primary">
-                    {plannedQty || '0'}
+                {/* Big Number Display with Direct Controls */}
+                <div className="p-4 rounded-xl bg-lavender/50 border border-primary/20 text-center space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                      Target Batch Quantity
+                    </span>
+                    {isOverrideMode ? (
+                      <Badge variant="warning" className="text-[10px]">
+                        Custom Override
+                      </Badge>
+                    ) : (
+                      <Badge variant="muted" className="text-[10px]">
+                        Recommended
+                      </Badge>
+                    )}
                   </div>
-                  <span className="text-xs text-text-secondary font-medium">
+
+                  <div className="flex items-center justify-center gap-3 py-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const currentVal = Number(plannedQty) || 0;
+                        const val = Math.max(0, currentVal - 1);
+                        setPlannedQty(String(val));
+                        setIsOverrideMode(true);
+                      }}
+                      className="h-9 w-9 p-0 text-lg font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                      title="Decrease 1 portion"
+                    >
+                      &minus;
+                    </Button>
+
+                    <div className="text-4xl font-black text-primary min-w-[70px] text-center">
+                      {plannedQty || '0'}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const currentVal = Number(plannedQty) || 0;
+                        const val = currentVal + 1;
+                        setPlannedQty(String(val));
+                        setIsOverrideMode(true);
+                      }}
+                      className="h-9 w-9 p-0 text-lg font-bold rounded-lg border-primary/30 text-primary hover:bg-primary/10"
+                      title="Increase 1 portion"
+                    >
+                      +
+                    </Button>
+                  </div>
+
+                  <span className="text-xs text-text-secondary font-medium block">
                     Portions to prepare
                   </span>
                 </div>
@@ -453,7 +513,7 @@ export const VendorPlanningPage: React.FC = () => {
                       onClick={() => setIsOverrideMode(!isOverrideMode)}
                       className="text-xs text-primary hover:underline font-medium cursor-pointer"
                     >
-                      {isOverrideMode ? 'Cancel Override' : 'Change Quantity'}
+                      {isOverrideMode ? 'Hide Options' : 'Type Exact Quantity'}
                     </button>
                   </div>
 
@@ -461,7 +521,7 @@ export const VendorPlanningPage: React.FC = () => {
                     <div className="space-y-3 p-3 bg-background rounded-lg border border-border">
                       <div className="space-y-1">
                         <Label htmlFor="plannedQuantity" className="text-xs">
-                          New Quantity (Portions)
+                          Exact Quantity (Portions)
                         </Label>
                         <Input
                           id="plannedQuantity"
@@ -469,7 +529,10 @@ export const VendorPlanningPage: React.FC = () => {
                           min="0"
                           step="1"
                           value={plannedQty}
-                          onChange={(e) => setPlannedQty(e.target.value)}
+                          onChange={(e) => {
+                            setPlannedQty(e.target.value);
+                            setIsOverrideMode(true);
+                          }}
                           required
                         />
                       </div>
@@ -481,7 +544,7 @@ export const VendorPlanningPage: React.FC = () => {
                         <Input
                           id="overrideReason"
                           type="text"
-                          placeholder="e.g. Special event, weather change"
+                          placeholder="e.g. Festival weekend, unexpected event"
                           value={overrideReason}
                           onChange={(e) => setOverrideReason(e.target.value)}
                         />

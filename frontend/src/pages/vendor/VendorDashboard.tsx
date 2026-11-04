@@ -93,10 +93,17 @@ export const VendorDashboard: React.FC = () => {
     }, 4000);
 
     const handleClockTick = () => loadVendorData();
+    const handleResponseUpdate = () => loadVendorData();
+
     window.addEventListener('clock-tick', handleClockTick);
+    window.addEventListener('response-updated', handleResponseUpdate);
+    window.addEventListener('storage', handleResponseUpdate);
+
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener('clock-tick', handleClockTick);
+      window.removeEventListener('response-updated', handleResponseUpdate);
+      window.removeEventListener('storage', handleResponseUpdate);
     };
   }, []);
 
