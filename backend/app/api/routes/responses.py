@@ -1,6 +1,6 @@
 from datetime import datetime, timezone, date
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
 from app.schemas.response import ResponseSubmitRequest, MealResponseSchema, MealCountsSchema
 from app.schemas.user import UserOut
 from app.dependencies.auth import get_current_user, require_role
@@ -14,7 +14,7 @@ from app.dependencies.repositories import (
     get_settings_repository,
     get_schedule_repository,
 )
-from app.core.timezone import get_institution_timezone, calculate_meal_response_window
+from app.core.timezone import get_institution_timezone, calculate_meal_response_window, parse_as_aware
 
 router = APIRouter(prefix="/responses", tags=["Student Responses"])
 
@@ -44,6 +44,7 @@ async def submit_response(
     request: ResponseSubmitRequest,
     meal_instance_id: Optional[str] = Query(None, alias="mealInstanceId"),
     meal_instance_id_alt: Optional[str] = Query(None, alias="meal_instance_id"),
+    x_simulation_time: Optional[str] = Header(None, alias="X-Simulation-Time"),
     response_repo: IResponseRepository = Depends(get_response_repository),
     meal_repo: IMealRepository = Depends(get_meal_repository),
     settings_repo: ISettingsRepository = Depends(get_settings_repository),
@@ -77,6 +78,11 @@ async def submit_response(
     inst_setting = await settings_repo.get_settings()
     inst_tz = get_institution_timezone(inst_setting.timezone)
     now = datetime.now(timezone.utc)
+    if x_simulation_time:
+        try:
+            now = parse_as_aware(x_simulation_time).astimezone(timezone.utc)
+        except Exception:
+            pass
 
     sched = None
     try:

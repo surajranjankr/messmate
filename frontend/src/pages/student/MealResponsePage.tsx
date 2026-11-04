@@ -100,7 +100,7 @@ export const MealResponsePage: React.FC = () => {
   const isDeadlinePassed = !isBeforeDeadline(meal.responseDeadline) || meal.status === 'RESPONSE_CLOSED' || meal.status === 'COMPLETED';
   const isInteractive = !isNotYetOpen && !isDeadlinePassed;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedChoice || !isInteractive) return;
 
@@ -109,7 +109,7 @@ export const MealResponsePage: React.FC = () => {
     setSuccessMessage(null);
 
     try {
-      const saved = responseService.submitResponse(user.id, meal.id, selectedChoice);
+      const saved = await responseService.submitResponseAsync(user.id, meal.id, selectedChoice);
       setExistingResponse(saved);
       setSuccessMessage(
         existingResponse

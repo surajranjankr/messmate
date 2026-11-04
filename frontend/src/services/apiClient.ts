@@ -5,6 +5,8 @@
 // attaches JWT bearer tokens from localStorage, manages session lifecycle,
 // and gracefully formats server errors.
 
+import { getCurrentTime, isMockTimeActive } from '../lib/clock';
+
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
@@ -79,6 +81,10 @@ export const apiClient = {
     const token = this.getToken();
     if (token && !headers.has('Authorization')) {
       headers.set('Authorization', `Bearer ${token}`);
+    }
+
+    if (isMockTimeActive() && !headers.has('X-Simulation-Time')) {
+      headers.set('X-Simulation-Time', getCurrentTime().toISOString());
     }
 
     try {

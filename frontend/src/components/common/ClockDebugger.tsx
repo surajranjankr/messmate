@@ -2,45 +2,25 @@
 // Clock Debugger & Time Travel Widget
 // ============================================================
 // Allows evaluating deadline behavior interactively in the prototype.
-// Collapsible and optional so it never obstructs mobile navigation.
 
 import React, { useState, useEffect } from 'react';
 import { getCurrentTime, setMockTime, resetClock, isMockTimeActive } from '@/lib/clock';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, RotateCcw, FastForward, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, RotateCcw, FastForward, ChevronUp, ChevronDown } from 'lucide-react';
 
 export const ClockDebugger: React.FC = () => {
   const [timeStr, setTimeStr] = useState<string>('');
+  const [shortTimeStr, setShortTimeStr] = useState<string>('');
   const [isMocked, setIsMocked] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState<boolean>(false);
-
-  // Optional / collapsible state: defaults to minimized on mobile devices
-  const [isMinimized, setIsMinimized] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('messmate_clock_minimized');
-      if (saved !== null) {
-        return saved === 'true';
-      }
-      return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleMinimized = (minimized: boolean) => {
-    setIsMinimized(minimized);
-    try {
-      localStorage.setItem('messmate_clock_minimized', String(minimized));
-    } catch {
-      // Ignore storage errors in restricted private browsing
-    }
-  };
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
   const updateDisplay = () => {
     const now = getCurrentTime();
     setTimeStr(format(now, 'EEE, MMM d, yyyy - hh:mm:ss a'));
+    setShortTimeStr(format(now, 'hh:mm a'));
     setIsMocked(isMockTimeActive());
   };
 
@@ -65,32 +45,36 @@ export const ClockDebugger: React.FC = () => {
     window.dispatchEvent(new Event('clock-tick'));
   };
 
-  // Minimized state: subtle, non-intrusive floating pill that never blocks mobile actions
   if (isMinimized) {
     return (
-      <button
-        type="button"
-        onClick={() => toggleMinimized(false)}
-        className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-card/95 hover:bg-card border border-border shadow-md text-text-secondary hover:text-text-primary text-xs transition-all backdrop-blur-sm cursor-pointer group"
-        title="Open Simulation Clock"
-        aria-label="Open Simulation Clock"
-      >
-        <Clock className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
-        <span className="font-medium text-[11px]">Clock</span>
-        {isMocked && (
-          <span className="w-2 h-2 rounded-full bg-warning ring-2 ring-warning/30 animate-pulse" title="Simulated time active" />
-        )}
-      </button>
+      <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-40">
+        <button
+          type="button"
+          onClick={() => setIsMinimized(false)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/95 backdrop-blur border border-border shadow-md hover:bg-lavender text-xs font-semibold text-text-primary transition-all cursor-pointer"
+          title="Click to expand simulation clock"
+        >
+          <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span>{shortTimeStr}</span>
+          {isMocked ? (
+            <Badge variant="warning" className="text-[9px] py-0 px-1 leading-none">
+              Sim
+            </Badge>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-success/80" />
+          )}
+          <ChevronUp className="w-3 h-3 text-text-secondary ml-0.5" />
+        </button>
+      </div>
     );
   }
 
-  // Expanded state
   return (
-    <div className="fixed bottom-4 right-4 z-40 bg-card/95 backdrop-blur-md border border-border shadow-xl rounded-xl p-3 text-xs w-[calc(100vw-2rem)] max-w-sm transition-all animate-in fade-in slide-in-from-bottom-2 duration-150">
+    <div className="fixed bottom-3 right-3 sm:bottom-4 sm:right-4 z-40 bg-card/95 backdrop-blur border border-border shadow-lg rounded-xl p-3 text-xs w-[calc(100vw-1.5rem)] sm:w-auto sm:max-w-sm transition-all">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 font-medium text-text-primary">
+        <div className="flex items-center gap-1.5 font-medium text-text-primary truncate">
           <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="truncate">Simulation Clock:</span>
+          <span className="font-semibold">Simulation Clock:</span>
           {isMocked ? (
             <Badge variant="warning" className="text-[10px] py-0 px-1.5 shrink-0">
               Simulated
@@ -101,37 +85,24 @@ export const ClockDebugger: React.FC = () => {
             </Badge>
           )}
         </div>
-
         <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-1.5 text-[11px] gap-0.5"
+            className="h-6 px-1.5 text-[11px]"
             onClick={() => setIsOpen(!isOpen)}
           >
-            {isOpen ? (
-              <>
-                <span>Hide</span>
-                <ChevronUp className="w-3 h-3" />
-              </>
-            ) : (
-              <>
-                <span>Adjust</span>
-                <ChevronDown className="w-3 h-3" />
-              </>
-            )}
+            {isOpen ? 'Close' : 'Adjust'}
           </Button>
-
-          {/* Close / Minimize button */}
-          <button
-            type="button"
-            onClick={() => toggleMinimized(true)}
-            className="p-1 rounded-md text-text-secondary hover:text-text-primary hover:bg-muted/50 transition-colors"
-            title="Minimize Clock Widget"
-            aria-label="Minimize Clock Widget"
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-text-secondary hover:text-text-primary"
+            onClick={() => setIsMinimized(true)}
+            title="Minimize clock"
           >
-            <X className="w-3.5 h-3.5" />
-          </button>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </Button>
         </div>
       </div>
 
@@ -148,7 +119,7 @@ export const ClockDebugger: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs flex-1 sm:flex-none"
               onClick={() => handleAdvance(1)}
             >
               <FastForward className="w-3 h-3 mr-1" /> +1h
@@ -156,7 +127,7 @@ export const ClockDebugger: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs flex-1 sm:flex-none"
               onClick={() => handleAdvance(4)}
             >
               <FastForward className="w-3 h-3 mr-1" /> +4h
@@ -164,7 +135,7 @@ export const ClockDebugger: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 text-xs flex-1 sm:flex-none"
               onClick={() => handleAdvance(24)}
             >
               <FastForward className="w-3 h-3 mr-1" /> +1 Day
@@ -173,7 +144,7 @@ export const ClockDebugger: React.FC = () => {
               <Button
                 variant="destructive"
                 size="sm"
-                className="h-7 text-xs"
+                className="h-7 text-xs flex-1 sm:flex-none"
                 onClick={handleReset}
               >
                 <RotateCcw className="w-3 h-3 mr-1" /> Reset

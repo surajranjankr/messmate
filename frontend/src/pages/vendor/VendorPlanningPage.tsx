@@ -39,18 +39,21 @@ import {
   Utensils,
   Clock,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { parseISO } from 'date-fns';
 
 export const VendorPlanningPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const mealIdParam = searchParams.get('mealId');
 
+  const [todaysMeals, setTodaysMeals] = useState<MealInstance[]>([]);
   const [selectedMeal, setSelectedMeal] = useState<MealInstance | null>(null);
   const [counts, setCounts] = useState<MealCounts | null>(null);
   const [recommendation, setRecommendation] = useState<ForecastRecommendation | null>(null);
   const [existingDecision, setExistingDecision] = useState<VendorDecision | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Form state
   const [plannedQty, setPlannedQty] = useState<string>('');
@@ -59,10 +62,66 @@ export const VendorPlanningPage: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const loadIncomingMeal = async () => {
-    setIsLoading(true);
-    let targetMeal: MealInstance | null = null;
+  const loadMealData = async (targetMeal: MealInstance, silent = false) => {
+    if (!silent) setIsLoading(true);
+    else setIsRefreshing(true);
 
+    setSelectedMeal(targetMeal);
+
+    // Immediate local cache
+    const c = responseService.getAggregateCounts(targetMeal.id);
+    setCounts(c);
+
+    const rec = forecastService.getRecommendation(targetMeal.id);
+    setRecommendation(rec);
+
+    const decision = forecastService.getVendorDecision(targetMeal.id);
+    setExistingDecision(decision);
+
+    if (decision) {
+      setPlannedQty(String(decision.finalPlannedQuantity));
+      setOverrideReason(decision.overrideReason ?? '');
+      setIsOverrideMode(decision.status === VendorDecisionStatus.OVERRIDDEN);
+    } else if (rec.recommendedPortions != null) {
+      setPlannedQty(String(rec.recommendedPortions));
+      setOverrideReason('');
+      setIsOverrideMode(false);
+    }
+
+    // Backend sync
+    try {
+      const [backendCount, backendRec, backendDecision] = await Promise.all([
+        responseService.fetchAggregateCounts(targetMeal.id),
+        forecastService.fetchRecommendation(targetMeal.id),
+        forecastService.fetchVendorDecision(targetMeal.id),
+      ]);
+
+      if (backendCount) setCounts(backendCount);
+      if (backendRec) {
+        setRecommendation(backendRec);
+        if (!backendDecision && backendRec.recommendedPortions != null) {
+          setPlannedQty(String(backendRec.recommendedPortions));
+        }
+      }
+      if (backendDecision) {
+        setExistingDecision(backendDecision);
+        setPlannedQty(String(backendDecision.finalPlannedQuantity));
+        setOverrideReason(backendDecision.overrideReason ?? '');
+        setIsOverrideMode(backendDecision.status === VendorDecisionStatus.OVERRIDDEN);
+      }
+    } catch {
+      // Retain local counts
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const loadIncomingMeal = async () => {
+    const todayList = mealInstanceService.getTodaysMeals();
+    setTodaysMeals(todayList);
+
+    let targetMeal: MealInstance | null = null;
     if (mealIdParam) {
       targetMeal = mealInstanceService.getMealInstance(mealIdParam);
     }
@@ -75,60 +134,42 @@ export const VendorPlanningPage: React.FC = () => {
       targetMeal = mealInstanceService.getNextActionableMeal();
     }
 
-    setSelectedMeal(targetMeal);
-
     if (targetMeal) {
-      const c = responseService.getAggregateCounts(targetMeal.id);
-      setCounts(c);
-
-      const rec = forecastService.getRecommendation(targetMeal.id);
-      setRecommendation(rec);
-
-      const decision = forecastService.getVendorDecision(targetMeal.id);
-      setExistingDecision(decision);
-
-      if (decision) {
-        setPlannedQty(String(decision.finalPlannedQuantity));
-        setOverrideReason(decision.overrideReason ?? '');
-        setIsOverrideMode(decision.status === VendorDecisionStatus.OVERRIDDEN);
-      } else if (rec.recommendedPortions != null) {
-        setPlannedQty(String(rec.recommendedPortions));
-        setOverrideReason('');
-        setIsOverrideMode(false);
-      }
-
-      // Backend sync
-      Promise.all([
-        responseService.fetchAggregateCounts(targetMeal.id),
-        forecastService.fetchRecommendation(targetMeal.id),
-        forecastService.fetchVendorDecision(targetMeal.id),
-      ])
-        .then(([backendCount, backendRec, backendDecision]) => {
-          if (backendCount) setCounts(backendCount);
-          if (backendRec) {
-            setRecommendation(backendRec);
-            if (!backendDecision && backendRec.recommendedPortions != null) {
-              setPlannedQty(String(backendRec.recommendedPortions));
-            }
-          }
-          if (backendDecision) {
-            setExistingDecision(backendDecision);
-            setPlannedQty(String(backendDecision.finalPlannedQuantity));
-            setOverrideReason(backendDecision.overrideReason ?? '');
-            setIsOverrideMode(backendDecision.status === VendorDecisionStatus.OVERRIDDEN);
-          }
-        })
-        .catch(() => {});
+      await loadMealData(targetMeal);
+    } else {
+      setIsLoading(false);
     }
+  };
 
-    setIsLoading(false);
+  const handleSelectMeal = (meal: MealInstance) => {
+    setSearchParams({ mealId: meal.id });
+    loadMealData(meal);
+  };
+
+  const handleManualRefresh = () => {
+    if (selectedMeal) {
+      loadMealData(selectedMeal, true);
+    } else {
+      loadIncomingMeal();
+    }
   };
 
   useEffect(() => {
     loadIncomingMeal();
+
+    // Auto-refresh counts every 5 seconds so real-time student submissions show up immediately
+    const pollInterval = setInterval(() => {
+      if (selectedMeal) {
+        loadMealData(selectedMeal, true);
+      }
+    }, 5000);
+
     const handleClockTick = () => loadIncomingMeal();
     window.addEventListener('clock-tick', handleClockTick);
-    return () => window.removeEventListener('clock-tick', handleClockTick);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('clock-tick', handleClockTick);
+    };
   }, [mealIdParam]);
 
   const handleAcceptRecommendation = () => {
@@ -257,7 +298,49 @@ export const VendorPlanningPage: React.FC = () => {
             Review student intentions, check recommended portions, and confirm kitchen preparation.
           </p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="text-xs font-semibold gap-1.5 shadow-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-primary' : 'text-text-secondary'}`} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh Counts'}</span>
+          </Button>
+        </div>
       </div>
+
+      {/* Meal Selection Tabs */}
+      {todaysMeals.length > 0 && (
+        <div className="flex items-center gap-2 p-1.5 bg-card border border-border rounded-xl shadow-xs overflow-x-auto">
+          <span className="text-xs font-bold text-text-secondary px-2 uppercase tracking-wider shrink-0">
+            Select Meal:
+          </span>
+          <div className="flex items-center gap-1.5">
+            {todaysMeals.map((m) => {
+              const isSelected = selectedMeal?.id === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleSelectMeal(m)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    isSelected
+                      ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
+                      : 'bg-lavender/40 text-text-secondary hover:text-text-primary hover:bg-lavender'
+                  }`}
+                >
+                  {formatMealType(m.mealType)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Notifications */}
       {successMessage && (
