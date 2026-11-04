@@ -7,6 +7,7 @@ index initialization, and health checks for MongoDB Atlas.
 
 import asyncio
 from typing import Optional
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from app.core.config import settings
@@ -40,6 +41,7 @@ def get_mongo_client() -> AsyncIOMotorClient:
             )
         _mongo_client = AsyncIOMotorClient(
             settings.MONGODB_URI,
+            tlsCAFile=certifi.where(),
             maxPoolSize=50,
             minPoolSize=5,
             serverSelectionTimeoutMS=5000,
