@@ -120,6 +120,21 @@ class MongoMealRepository(IMealRepository):
         docs = await cursor.to_list(length=1000)
         refreshed = await self._refresh_statuses(docs)
 
+        MEAL_ORDER = {"BREAKFAST": 1, "LUNCH": 2, "SNACKS": 3, "DINNER": 4}
+        today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # 1. Today's uncompleted meals (both RESPONSE_OPEN and RESPONSE_CLOSED)
+        todays = [d for d in refreshed if d.get("meal_date") == today_iso and d.get("status") != "COMPLETED"]
+        if todays:
+            todays.sort(key=lambda x: MEAL_ORDER.get(x.get("meal_type"), 99))
+            open_today = [d for d in todays if d.get("status") == "RESPONSE_OPEN"]
+            if open_today:
+                return self._to_schema(open_today[0])
+            closed_today = [d for d in todays if d.get("status") == "RESPONSE_CLOSED"]
+            if closed_today:
+                return self._to_schema(closed_today[-1])
+            return self._to_schema(todays[0])
+
         open_meals = [d for d in refreshed if d.get("status") == "RESPONSE_OPEN"]
         if open_meals:
             open_meals.sort(key=lambda x: x.get("response_deadline", ""))
@@ -127,8 +142,13 @@ class MongoMealRepository(IMealRepository):
 
         upcoming = [d for d in refreshed if d.get("status") == "UPCOMING"]
         if upcoming:
-            upcoming.sort(key=lambda x: x.get("meal_date", ""))
+            upcoming.sort(key=lambda x: (x.get("meal_date", ""), MEAL_ORDER.get(x.get("meal_type"), 99)))
             return self._to_schema(upcoming[0])
+
+        remaining = [d for d in refreshed if d.get("status") != "COMPLETED"]
+        if remaining:
+            remaining.sort(key=lambda x: (x.get("meal_date", ""), MEAL_ORDER.get(x.get("meal_type"), 99)))
+            return self._to_schema(remaining[0])
 
         return None
 

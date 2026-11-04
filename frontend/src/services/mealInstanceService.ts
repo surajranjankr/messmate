@@ -98,13 +98,8 @@ export const mealInstanceService = {
    */
   getNextActionableMeal(): MealInstance | null {
     const instances = this.getAllMealInstances();
-    const openMeals = instances
-      .filter((inst) => inst.status === MealInstanceStatus.RESPONSE_OPEN)
-      .sort((a, b) => parseISO(a.responseDeadline).getTime() - parseISO(b.responseDeadline).getTime());
-
-    if (openMeals.length > 0) {
-      return openMeals[0]!;
-    }
+    const now = getCurrentTime();
+    const todayStr = format(now, 'yyyy-MM-dd');
 
     const MEAL_ORDER: Record<string, number> = {
       BREAKFAST: 1,
@@ -113,6 +108,36 @@ export const mealInstanceService = {
       DINNER: 4,
     };
 
+    // 1. Today's meals that are uncompleted (both RESPONSE_OPEN and RESPONSE_CLOSED)
+    const todaysUncompleted = instances
+      .filter((inst) => inst.mealDate === todayStr && inst.status !== MealInstanceStatus.COMPLETED)
+      .sort((a, b) => (MEAL_ORDER[a.mealType] ?? 99) - (MEAL_ORDER[b.mealType] ?? 99));
+
+    if (todaysUncompleted.length > 0) {
+      // If any meal today is still open for responses, prepare that first
+      const openMeal = todaysUncompleted.find((inst) => inst.status === MealInstanceStatus.RESPONSE_OPEN);
+      if (openMeal) return openMeal;
+
+      // If response deadline has closed (e.g. Dinner past 5:00 PM), final counts are ready
+      // and this meal is actively being prepared in the kitchen!
+      const closedMeals = todaysUncompleted.filter((inst) => inst.status === MealInstanceStatus.RESPONSE_CLOSED);
+      if (closedMeals.length > 0) {
+        return closedMeals[closedMeals.length - 1]!;
+      }
+
+      return todaysUncompleted[0]!;
+    }
+
+    // 2. Future open meals
+    const otherOpen = instances
+      .filter((inst) => inst.status === MealInstanceStatus.RESPONSE_OPEN)
+      .sort((a, b) => parseISO(a.responseDeadline).getTime() - parseISO(b.responseDeadline).getTime());
+
+    if (otherOpen.length > 0) {
+      return otherOpen[0]!;
+    }
+
+    // 3. Upcoming meals on future days
     const upcomingMeals = instances
       .filter((inst) => inst.status === MealInstanceStatus.UPCOMING)
       .sort((a, b) => {

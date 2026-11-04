@@ -107,6 +107,22 @@ class SqliteMealRepository(IMealRepository):
         instances = self.db.query(MealInstance).all()
         refreshed = self._refresh_statuses(instances)
 
+        MEAL_ORDER = {"BREAKFAST": 1, "LUNCH": 2, "SNACKS": 3, "DINNER": 4}
+        inst_tz = self._get_institution_tz()
+        today_str = get_institution_today_str(inst_tz)
+
+        # 1. Today's uncompleted meals (both RESPONSE_OPEN and RESPONSE_CLOSED)
+        todays = [i for i in refreshed if i.meal_date == today_str and i.status != "COMPLETED"]
+        if todays:
+            todays.sort(key=lambda x: MEAL_ORDER.get(x.meal_type, 99))
+            open_today = [i for i in todays if i.status == "RESPONSE_OPEN"]
+            if open_today:
+                return self._to_schema(open_today[0])
+            closed_today = [i for i in todays if i.status == "RESPONSE_CLOSED"]
+            if closed_today:
+                return self._to_schema(closed_today[-1])
+            return self._to_schema(todays[0])
+
         open_meals = [i for i in refreshed if i.status == "RESPONSE_OPEN"]
         if open_meals:
             open_meals.sort(key=lambda x: x.response_deadline)
@@ -114,8 +130,13 @@ class SqliteMealRepository(IMealRepository):
 
         upcoming = [i for i in refreshed if i.status == "UPCOMING"]
         if upcoming:
-            upcoming.sort(key=lambda x: x.meal_date)
+            upcoming.sort(key=lambda x: (x.meal_date, MEAL_ORDER.get(x.meal_type, 99)))
             return self._to_schema(upcoming[0])
+
+        remaining = [i for i in refreshed if i.status != "COMPLETED"]
+        if remaining:
+            remaining.sort(key=lambda x: (x.meal_date, MEAL_ORDER.get(x.meal_type, 99)))
+            return self._to_schema(remaining[0])
 
         return None
 

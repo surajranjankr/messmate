@@ -4,6 +4,61 @@ MessMate is a frugal innovation web application designed for **IIIT Dharwad Mess
 
 ---
 
+## 🌐 Live Deployments & Demo Links
+
+- **Live Cloud Backend (Render):** [https://messmate-api-idjb.onrender.com](https://messmate-api-idjb.onrender.com)
+- **Interactive Swagger API Docs:** [https://messmate-api-idjb.onrender.com/docs](https://messmate-api-idjb.onrender.com/docs)
+- **OpenAPI 3.1 JSON Specification:** [https://messmate-api-idjb.onrender.com/openapi.json](https://messmate-api-idjb.onrender.com/openapi.json)
+- **Database Engine:** MongoDB Atlas Cloud Cluster (`cluster0.5xtclgn.mongodb.net`, database `messmate`) with automatic SQLite high-availability failover.
+
+---
+
+## 📋 Interactive Demo Walkthrough (Step-by-Step)
+
+Follow these guided steps to evaluate the end-to-end full-stack workflow:
+
+### Step 1: Student Intention Submission
+1. Log in at the login screen as **Student**:
+   - **Email:** `arjun@iiitdwd.ac.in`
+   - **Password:** `demo123`
+2. On the Student Dashboard, review today's meals (November 4, 2026).
+3. Click **Dinner** (Menu: *Mixed Veg Curry, Chapati & Dal Fry*).
+4. Select your attendance intention: choose **"Probably Eating"** (or **"Definitely Eating"**).
+5. Click **Submit Response**. Notice the real-time confirmation badge.
+
+### Step 2: Vendor Live Tracking & Preparation Planning
+1. Sign out and log in as **Mess Vendor**:
+   - **Email:** `vendor@iiitdwd.ac.in`
+   - **Password:** `demo123`
+2. On the **Vendor Dashboard**, notice the live pulsing indicator:
+   `🟢 Live Student Response Counts (Updating live)`
+3. Observe the **Dinner** card immediately reflecting your student response under **"Probably Eating"**.
+4. Click **"Review & Confirm Batch Quantity"** on the Dinner card.
+5. In the **Kitchen Preparation Planning** sheet:
+   - Notice the incoming meal is accurately set to **Dinner • Nov 4, 2026**.
+   - Check the formula-based portion recommendation:
+     $$Q = \lceil F \times (1 + m) \rceil$$
+     *(Expected demand with safety margin buffer)*.
+   - Adjust portions using the **`+` / `−`** stepper buttons, or click **"Use Recommended"**.
+   - Click **Confirm Preparation Plan**.
+
+### Step 3: Simulation Clock & Deadline Testing
+1. In the bottom-right corner of the screen, click the **Simulation Clock** widget.
+2. Click **Adjust** to test deadline behaviors:
+   - Advance time by `+1 Hour`, `+4 Hours`, or reset to system time.
+   - All open browser tabs synchronize simulation time instantly via local storage broadcast.
+   - If time passes the 5:00 PM cutoff, the student response window locks automatically with strict server-side deadline enforcement.
+
+### Step 4: Administrator Audit & Operations
+1. Sign out and log in as **Administrator**:
+   - **Email:** `admin@iiitdwd.ac.in`
+   - **Password:** `demo123`
+2. Navigate to **User Management** to view active students, vendors, and admins, or add new institutional users.
+3. Check **Menu Management** to inspect the official 4-week rotating IIIT Dharwad menu.
+4. Open **Reports & Analytics** to evaluate historical attendance trends and waste reduction analytics.
+
+---
+
 ## 1. Project Status: Phase 2 Complete (Full-Stack Application)
 
 MessMate development progress:
