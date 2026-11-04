@@ -381,7 +381,7 @@ def init_db(db: Session) -> None:
                 id="user-admin",
                 display_name="Admin User",
                 email="admin@iiitdwd.ac.in",
-                hashed_password=hash_password("demo123"),
+                hashed_password=hash_password("MessMate#Admin2026!"),
                 role="ADMIN",
                 status="ACTIVE",
             ),

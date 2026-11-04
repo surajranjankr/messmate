@@ -4,12 +4,11 @@ MessMate is a frugal innovation web application designed for **IIIT Dharwad Mess
 
 ---
 
-## 🌐 Live Deployments & Demo Links
+## 🌐 Live Application Demo
 
-- **Live Cloud Backend (Render):** [https://messmate-api-idjb.onrender.com](https://messmate-api-idjb.onrender.com)
-- **Interactive Swagger API Docs:** [https://messmate-api-idjb.onrender.com/docs](https://messmate-api-idjb.onrender.com/docs)
-- **OpenAPI 3.1 JSON Specification:** [https://messmate-api-idjb.onrender.com/openapi.json](https://messmate-api-idjb.onrender.com/openapi.json)
-- **Database Engine:** MongoDB Atlas Cloud Cluster (`cluster0.5xtclgn.mongodb.net`, database `messmate`) with automatic SQLite high-availability failover.
+- **Live Application Link:** [https://messmate-ztj1.onrender.com/login](https://messmate-ztj1.onrender.com/login)
+- **Backend API Base:** [https://messmate-api-idjb.onrender.com/api/v1](https://messmate-api-idjb.onrender.com/api/v1)
+- **Interactive Swagger Docs:** [https://messmate-api-idjb.onrender.com/docs](https://messmate-api-idjb.onrender.com/docs)
 
 ---
 
@@ -52,7 +51,7 @@ Follow these guided steps to evaluate the end-to-end full-stack workflow:
 ### Step 4: Administrator Audit & Operations
 1. Sign out and log in as **Administrator**:
    - **Email:** `admin@iiitdwd.ac.in`
-   - **Password:** `demo123`
+   - **Password:** `MessMate#Admin2026!`
 2. Navigate to **User Management** to view active students, vendors, and admins, or add new institutional users.
 3. Check **Menu Management** to inspect the official 4-week rotating IIIT Dharwad menu.
 4. Open **Reports & Analytics** to evaluate historical attendance trends and waste reduction analytics.
@@ -102,15 +101,16 @@ MessMate development progress:
 > **DEVELOPMENT & TESTING ONLY:**
 > The following credentials are provided strictly for local demonstration, automated testing, and development evaluation. They must NEVER be used in production environments. Production deployments must integrate institute Single Sign-On (SSO) or enforce distinct, securely rotated administrative credentials.
 
-All default seed demo accounts use password: **`demo123`**
+All default student and vendor accounts use password: **`demo123`**  
+The administrator account uses password: **`MessMate#Admin2026!`**
 
-| Role | Name | Institute Email | Access & Permissions |
-|---|---|---|---|
-| **Student** | Arjun Sharma | `arjun@iiitdwd.ac.in` | Views weekly menu, submits meal intentions before deadline, views private history |
-| **Student** | Priya Patel | `priya@iiitdwd.ac.in` | Student workflows and intention submissions |
-| **Student** | Rahul Verma | `rahul@iiitdwd.ac.in` | Student workflows and intention submissions |
-| **Vendor** | Mess Vendor | `vendor@iiitdwd.ac.in` | Inspects dynamic aggregate counts, reviews baseline recommendations, confirms batch sizes, logs leftovers |
-| **Administrator** | Admin User | `admin@iiitdwd.ac.in` | Full management: users, draft/published menus, 28 notification schedules, operational audit reports |
+| Role | Name | Institute Email | Password | Access & Permissions |
+|---|---|---|---|---|
+| **Student** | Arjun Sharma | `arjun@iiitdwd.ac.in` | `demo123` | Views weekly menu, submits meal intentions before deadline, views private history |
+| **Student** | Priya Patel | `priya@iiitdwd.ac.in` | `demo123` | Student workflows and intention submissions |
+| **Student** | Rahul Verma | `rahul@iiitdwd.ac.in` | `demo123` | Student workflows and intention submissions |
+| **Vendor** | Mess Vendor | `vendor@iiitdwd.ac.in` | `demo123` | Inspects dynamic aggregate counts, reviews baseline recommendations, confirms batch sizes, logs leftovers |
+| **Administrator** | Admin User | `admin@iiitdwd.ac.in` | `MessMate#Admin2026!` | Full management: users, draft/published menus, 28 notification schedules, operational audit reports |
 
 > **Security Note:** Quick Demo autofill cards have been removed from the user interface. Users must authenticate manually using their institute credentials.
 

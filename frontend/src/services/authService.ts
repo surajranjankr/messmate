@@ -50,8 +50,21 @@ export const authService = {
       (u) => u.email.toLowerCase() === emailNormalized && u.status === UserStatus.ACTIVE
     );
 
-    if (!matchedUser || credentials.password !== DEMO_PASSWORD) {
-      throw new Error('Invalid email or password. Use demo credentials (password: demo123).');
+    if (!matchedUser) {
+      throw new Error('Invalid email or password.');
+    }
+
+    const isMockAdmin = matchedUser.role === UserRole.ADMIN;
+    const isValidPass = isMockAdmin
+      ? credentials.password === 'MessMate#Admin2026!' || credentials.password === DEMO_PASSWORD
+      : credentials.password === DEMO_PASSWORD;
+
+    if (!isValidPass) {
+      throw new Error(
+        isMockAdmin
+          ? 'Invalid admin credentials. Please provide the configured administrator password.'
+          : 'Invalid email or password. Use demo credentials (password: demo123).'
+      );
     }
 
     storageSet(StorageKey.CURRENT_USER, matchedUser);
